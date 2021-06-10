@@ -6,7 +6,7 @@ EPIC stands for Equal a Posteriori Information Condition.
 
 
 #### PLEASE CITE:
-- The article describing the details of the methodology: 
+- The article describing the details of the methodology and notation of the codes: 
 Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021). An EPIC Tikhonov regularization: Application to quasi-static fault slip inversion. Journal of Geophysical Research: Solid Earth, 126, e2020JB021141. https://doi.org/10.1029/2020JB021141 (Also see CITATION.bib).
 
 
