@@ -134,7 +134,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
                         xtol=LSQpar['TolX1'], loss = LSQpar['loss'],
                              gtol = LSQpar['TolG1'],
                              bounds = bounds)
-        print('beta0 = ', sol0['x'][0]/2)
+        print('beta0 = ', sol0['x'][0])
         Xnext = sol0['x'][0] + X0
 
         if LSQpar['verbose'] > 0:
