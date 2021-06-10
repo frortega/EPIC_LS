@@ -86,11 +86,11 @@ def least_squares_reg_cov(G, d, Cx, H, ho, Ch):
 
     # need to compute weight matrices using the cholesky decomposition of the covariance
     # matrices
-    # for the misfit error covariance matrix
+    # for the misfit covariance matrix
     Ndata, Ndata2 = Cx.shape
     inv_Cx = NP.linalg.lstsq(Cx, NP.eye(Ndata))[0]
     Wx = NP.linalg.cholesky(inv_Cx).T  # as python calculates A.dot(A.T) = inv_Cx
-    # for the regularization error covariance matrix
+    # for the prior information covariance matrix
     Nh, Nh2 = Ch.shape
     inv_Ch = NP.linalg.lstsq(Ch, NP.eye(Nh))[0]
     Wh = NP.linalg.cholesky(inv_Ch).T  # as python calculates A.dot(A.T) = inv_Cx
