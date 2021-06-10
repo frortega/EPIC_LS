@@ -1,6 +1,6 @@
 # EPIC Tikhonov Regularization for Least Squares Inversion (EPIC_LS)
 
-This package allows the user to perform a General Least Squares Inversion with EPIC Tikhonov regularization. 
+This package allows the user to perform a (Linear) General Least Squares Inversion with EPIC Tikhonov regularization. 
 EPIC stands for Equal a Posteriori Information Condition.
 
 
