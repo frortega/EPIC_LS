@@ -3,6 +3,10 @@
 This package allows the user to perform a (Linear) General Least Squares Inversion with EPIC Tikhonov regularization. 
 EPIC stands for Equal a Posteriori Information Condition.
 
+EPIC_LS includes 2 subpackages:
+
+- EPIC: codes to compute the EPIC for the general linear least squares problem.
+- LeastSquares: codes to solve the linear least squares problem and the general linear least squares problem (with linear regularization).
 
 #### PLEASE CITE:
 - The article describing the details of the methodology and notation of the codes: 
