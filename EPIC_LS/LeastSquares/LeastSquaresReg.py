@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 """
 by
 Prof. Francisco Hernán Ortega Culaciati

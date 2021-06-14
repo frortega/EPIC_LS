@@ -1,4 +1,5 @@
-__doc__ = """
+# -*- coding: utf-8 -*-
+"""
 by
 Prof. Francisco Hernán Ortega Culaciati
 ortega.francisco@uchile.cl

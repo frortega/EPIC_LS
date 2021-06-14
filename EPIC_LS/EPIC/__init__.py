@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-__doc__ = """
+"""
 Francisco Hernán Ortega Culaciati
 ortega.francisco@uchile.cl
 frortega@gmail.com
