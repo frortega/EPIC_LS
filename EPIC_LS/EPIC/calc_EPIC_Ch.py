@@ -16,7 +16,6 @@ from scipy.linalg import inv
 from scipy.optimize import least_squares
 from .beta_bounds import compute_bounds
 from .F_JF import calc_F, calc_JF
-from numpy.linalg import lstsq
 
 ### Main function to calculate Ch using EPIC condition.
 def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step = False,
@@ -25,7 +24,9 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
 
     :param P: Precision matrix of the unregularized inverse problem (Nm x Nm)
     :param H: Regularization operator (matrix) (Nh x Nm)
-    :param targetSigma_m: target a posteriory error on model parameters (sqrt(variance)).
+    :param targetSigma_m: target a posteriory standard deviations on model parameters.
+                          Must be a single column numpy 2D array. The length must be 
+                          equal to the number of model parameters.
     :param X0: initial values of betas, the natural logarithm of the reciprocal of prior 
                information variances (Nh x 1). X0 = -NP.log(Ch0). 
     :param LSQpar: a dictionary with several parameters that control convergence of
@@ -33,20 +34,30 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     :param V: matrix accounting for a linear variable change, x = V.dot(y) in which
              we search values for y instead of x. Thus X0 must have the dimension of y.
     :param shift_k: see docstring of beta_bounds.compute_bounds
-    :param homogeneous_step: if True does homogeneous step to find an Homogeneous Ch.
+    :param homogeneous_step: if True does first an homogeneous step to find a preliminary
+                            initial guess of Ch.
 
-    LSQpar must be a dictionary containing the convergence parameters:    
-        - LSQpar['TolX1'] = 1e5 * eps :
-        - LSQpar['TolFun1'] = 1e5 * eps
-        - LSQpar['TolX2'] = 1e3 * eps
-        - LSQpar['TolFun2'] = 1e3 * eps
-        - LSQpar['method'] = 'trf'
-        - LSQpar['verbose'] = 2
-        see scipy.optimize.least_squares help for further information.
+    LSQpar must be a dictionary containing the convergence parameters for:    
+        (1) Homogeneous step search (with default values of):
+            - LSQpar['TolX1'] = 1e-6  
+            - LSQpar['TolFun1'] = 1e-6
+            - LSQpar['TolG1'] = 1E-6
+        (2) search for heterogenous Ch (with default values of):
+            - LSQpar['TolX2'] = 1e-4
+            - LSQpar['TolFun2'] = 1e-4 
+            - LSQpar['TolG2'] = 1E-6
+        (3) Solver, loss function type  and verbose level
+            - LSQpar['method'] = 'trf'
+            - LSQpar['loss'] = 'linear'
+            - LSQpar['verbose'] = 2
+      
+        see scipy.optimize.least_squares help for further information. Here, TolX?, TolF? 
+        and TolG? refer to tolerances defined for convergence criteria on model, objective        function and gradient variations, respectively.
 
     :return: a dictionary with the estimated vector of the natural logarithm of the
              reciprocal of a priori variances Ch and status as well as information on 
-             the results of the nonlinear optimization.
+             the results of the nonlinear optimization. (See scipy.optimize.least_squares
+             output definition for further information).
     """
     # enforce that X0 and targetSigma_m are 1D numpy arrays
     X0 = X0.reshape(len(X0))
