@@ -19,7 +19,7 @@ from .F_JF import calc_F, calc_JF
 
 ### Main function to calculate Ch using EPIC condition.
 def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step = False,
-                 shift_k = 0):
+                 beta_shift_k = 0, beta_distance = 2):
     """
 
     :param P: Precision matrix of the unregularized inverse problem (Nm x Nm)
@@ -33,7 +33,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
                 nonlinear optimization algorithm used to solve the EPIC condition problem.
     :param V: matrix accounting for a linear variable change, x = V.dot(y) in which
              we search values for y instead of x. Thus X0 must have the dimension of y.
-    :param shift_k: see docstring of beta_bounds.compute_bounds
+    :param beta_shift_k & beta_distance: see docstring of beta_bounds.compute_bounds
     :param homogeneous_step: if True does first an homogeneous step to find a preliminary
                             initial guess of Ch.
 
@@ -43,9 +43,9 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
             - LSQpar['TolFun1'] = 1e-6
             - LSQpar['TolG1'] = 1E-6
         (2) search for heterogenous Ch (with default values of):
-            - LSQpar['TolX2'] = 1e-4
-            - LSQpar['TolFun2'] = 1e-4 
-            - LSQpar['TolG2'] = 1E-6
+            - LSQpar['TolX2'] = 1e-8
+            - LSQpar['TolFun2'] = 1e-8 
+            - LSQpar['TolG2'] = 1E-10
         (3) Solver, loss function type  and verbose level
             - LSQpar['method'] = 'trf'
             - LSQpar['loss'] = 'linear'
@@ -63,7 +63,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     X0 = X0.reshape(len(X0))
     targetSigma_m = targetSigma_m.reshape(len(targetSigma_m))
     # set bounds for betas
-    bounds = compute_bounds(shift_k)
+    bounds = compute_bounds(beta_shift_k, beta_distance)
     print(' betas will be within bounds = [{:.2f}, {:.2f}]'.format(
        *bounds))
 
@@ -101,11 +101,11 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
         if 'TolG1' not in LSQpar.keys():
             LSQpar['TolG1'] = 1E-6
         if 'TolX2' not in LSQpar.keys():
-            LSQpar['TolX2'] = 1E-4
+            LSQpar['TolX2'] = 1E-8
         if 'TolFun2' not in LSQpar.keys():
-            LSQpar['TolFun2'] = 1E-4
+            LSQpar['TolFun2'] = 1E-8
         if 'TolG2' not in LSQpar.keys():
-            LSQpar['TolG2'] = 1E-6
+            LSQpar['TolG2'] = 1E-10
 
     if 'method' not in LSQpar.keys():
         LSQpar['method'] = 'trf'
