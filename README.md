@@ -13,7 +13,7 @@ EPIC_LS includes 2 subpackages:
 Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021). An EPIC Tikhonov regularization: Application to quasi-static fault slip inversion. Journal of Geophysical Research: Solid Earth, 126, e2020JB021141. https://doi.org/10.1029/2020JB021141 (Also see CITATION.bib).
 
 #### EXAMPLES:
-- Examples on how to use the EPIC_LS package will be added to this repository during August 2021.
+- Examples on how to use the EPIC_LS package will be added soon to this repository.
 
 
 #### IMPORTANT TIPS: 
