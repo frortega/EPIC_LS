@@ -21,7 +21,7 @@ Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021
 
 - To use this package add this folder to your PYTHONPATH environment variable.
 
-======
+-----
 #### LATEST UPDATES:
 
-- October 26, 2021: Adds the option for performing the Least Squares Estimation applying non negativity constraints on all model parameters (see LeastSquaresNonNeg.py and LeastSquaresRegNonNeg.py in EPIC_LS/LeastSquares/).
+...- October 26, 2021: Adds the option for performing the Least Squares Estimation applying non negativity constraints on all model parameters (see LeastSquaresNonNeg.py and LeastSquaresRegNonNeg.py in EPIC_LS/LeastSquares/).
