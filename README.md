@@ -15,13 +15,13 @@ Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021
 #### EXAMPLES:
 - Examples on how to use the EPIC_LS package will be added soon to this repository.
 
-
+-----
 #### IMPORTANT TIPS: 
 - The calculation time will decrease considerably if scipy is compiled against mkl openblas (or similar) cappable of using multicore (default in anaconda python scipy). Remember to check environment variables OMP_NUM_THREADS, MKL_NUM_THREADS, MKL_DOMAIN_NUM_THREADS to have the right number of cores of your machine.
 
 - To use this package add this folder to your PYTHONPATH environment variable.
 
-
-#### LATEST UPDATES:
 -----
+#### LATEST UPDATES:
+
 - October 26, 2021: Adds the option for performing the Least Squares Estimation applying non negativity constraints on all model parameters (see LeastSquaresNonNeg.py and LeastSquaresRegNonNeg.py in EPIC_LS/LeastSquares/).
