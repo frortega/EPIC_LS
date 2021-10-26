@@ -6,7 +6,7 @@ EPIC stands for Equal Posterior Information Condition.
 EPIC_LS includes 2 subpackages:
 
 - EPIC: codes to compute the EPIC for the general linear least squares problem.
-- LeastSquares: codes to solve the linear least squares problem and the general linear least squares problem (with linear regularization).
+- LeastSquares: codes to solve the linear least squares problem and the general linear least squares problem (with linear regularization). As an option, non negativity constraints can be applied to all model parameters.
 
 #### PLEASE CITE:
 - The article describing the details of the methodology and notation of the codes: 
@@ -20,3 +20,7 @@ Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021
 - The calculation time will decrease considerably if scipy is compiled against mkl openblas (or similar) cappable of using multicore (default in anaconda python scipy). Remember to check environment variables OMP_NUM_THREADS, MKL_NUM_THREADS, MKL_DOMAIN_NUM_THREADS to have the right number of cores of your machine.
 
 - To use this package add this folder to your PYTHONPATH environment variable.
+
+
+### UPDATES:
+- October 26, 2021: Adds the option for performing the Least Squares Estimation applying non negativity constraints on all model parameters (see LeastSquaresNonNeg.py and LeastSquaresRegNonNeg.py in EPIC_LS/LeastSquares/).
