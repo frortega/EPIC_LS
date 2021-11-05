@@ -59,14 +59,6 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
              the results of the nonlinear optimization. (See scipy.optimize.least_squares
              output definition for further information).
     """
-    # enforce that X0 and targetSigma_m are 1D numpy arrays
-    X0 = X0.reshape(len(X0))
-    targetSigma_m = targetSigma_m.reshape(len(targetSigma_m))
-    # set bounds for betas
-    bounds = compute_bounds(beta_shift_k, beta_distance)
-    print(' betas will be within bounds = [{:.2f}, {:.2f}]'.format(
-       *bounds))
-
     Nh, Nm = H.shape
 
     # set default optimization parameters if not provided
@@ -114,6 +106,22 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     if 'verbose' not in LSQpar.keys():
         LSQpar['verbose'] = 2
 
+    # enforce that X0 and targetSigma_m are 1D numpy arrays
+    X0 = X0.reshape(len(X0))
+    targetSigma_m = targetSigma_m.reshape(len(targetSigma_m))
+    # set bounds for betas
+    bounds = compute_bounds(beta_shift_k, beta_distance)
+    if LSQpar['verbose'] > 0:
+            msg = """
+            *****************************************************
+            ***     Bounds for betas = Log(1/diag(Ch))        ***
+            *****************************************************
+            *** betas will be within bounds = [{:.2f}, {:.2f}] ***
+            *****************************************************
+            """
+            msg = msg.format(*bounds)
+            print(msg)
+
 
     # set the a posteriori target variance
     TargetVar = targetSigma_m ** 2
@@ -145,7 +153,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
                         xtol=LSQpar['TolX1'], loss = LSQpar['loss'],
                              gtol = LSQpar['TolG1'],
                              bounds = bounds)
-        print('beta0 = ', sol0['x'][0])
+        if LSQpar['verbose'] > 0: print('beta_homogeneous = ', sol0['x'][0])
         Xnext = sol0['x'][0] + X0
 
         if LSQpar['verbose'] > 0:
@@ -188,10 +196,11 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
                         gtol=LSQpar['TolG2'],
                         bounds=bounds, x_scale = 'jac')
 
-    print(' betas bounds = [{:.2f}, {:.2f}]'.format(
-       *bounds))
-    print('calculated betas min max are : ({:.2f}, {:.2f})'.format(
-        NP.min(sol['x']), NP.max(sol['x'])))
+    if LSQpar['verbose'] > 0:
+        print('****************************************************************')
+        print('*** calculated betas min max are : ({:.2f}, {:.2f})'.format(
+              NP.min(sol['x']), NP.max(sol['x'])))
+        print('****************************************************************')
 
     return sol
 
