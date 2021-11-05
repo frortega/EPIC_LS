@@ -109,4 +109,4 @@ def least_squares_reg_cov_non_neg(G, d, Cx, H, ho, Ch):
     Wh = NP.linalg.cholesky(inv_Ch).T  # as python calculates A.dot(A.T) = inv_Cx
 
     # compute and return the solution.
-    return least_squares_reg_weights(G, d, Wx, H, ho, Wh)
+    return least_squares_reg_weights_non_neg(G, d, Wx, H, ho, Wh)
