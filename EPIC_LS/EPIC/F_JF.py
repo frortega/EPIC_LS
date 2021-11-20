@@ -26,6 +26,13 @@ def calc_F(X, P, H, TargetVar, V = None, EPIC_bool = None):
     :param TargetVar: 1D numpy array with target a posteriori variances
     :param V: if not None, must be a 2D numpy array that can be used to specify a linear 
               relationship between the different variables being search (X).
+    :param EPIC_bool: A boolean numpy 1D array indicating which coefficients of m are 
+               subject to the EPIC. If EPIC_bool[i] is True then m[i] is subject to EPIC.
+               If var_m is the vector with the diagonal elements of the posterior 
+               covariance matrix of model parameters (Cm), then, the EPIC is written as:
+                    var_m[EPIC_bool] = target_sigmas**2
+               CAUTION must be taked when defining EPIC_bool and target_sigmas as 
+               the length and order of var_m[EPIC_bool] and target_sigmas**2  must match.
     :return: Numpy array with function F evaluated in X.
 
     """
