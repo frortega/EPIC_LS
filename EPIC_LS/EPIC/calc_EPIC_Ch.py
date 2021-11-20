@@ -19,7 +19,7 @@ from .F_JF import calc_F, calc_JF
 
 ### Main function to calculate Ch using EPIC condition.
 def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step = False,
-                 beta_shift_k = 0, beta_distance = 2):
+                 beta_shift_k = 0, beta_distance = 2, EPIC_bool = None):
     """
 
     :param P: Precision matrix of the unregularized inverse problem (Nm x Nm)
@@ -36,8 +36,14 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     :param beta_shift_k & beta_distance: see docstring of beta_bounds.compute_bounds
     :param homogeneous_step: if True does first an homogeneous step to find a preliminary
                             initial guess of Ch.
-
-    LSQpar must be a dictionary containing the convergence parameters for:    
+    :param EPIC_bool: A boolean numpy 1D array indicating which coefficients of m are 
+               subject to the EPIC. If EPIC_bool[i] is True then m[i] is subject to EPIC.
+               If var_m is the vector with the diagonal elements of the posterior 
+               covariance matrix of model parameters (Cm), then, the EPIC is written as:
+                    var_m[EPIC_bool] = target_sigmas**2
+               CAUTION must be taked when defining EPIC_bool and target_sigmas as 
+               the length and order of var_m[EPIC_bool] and target_sigmas**2  must match. 
+    :param LSQpar: must be a dictionary containing the convergence parameters for:    
         (1) Homogeneous step search (with default values of):
             - LSQpar['TolX1'] = 1e-6  
             - LSQpar['TolFun1'] = 1e-6
@@ -126,15 +132,21 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     # set the a posteriori target variance
     TargetVar = targetSigma_m ** 2
     # set the scipy.optimize.least_squares problem
-    Fargs = (P, H, TargetVar, V)
+    if EPIC_bool is None:
+        Fargs = (P, H, TargetVar, V)
+    else:
+        Fargs = (P, H, TargetVar, V, EPIC_bool)
 
     # calcF with constant function first to speed up things.
-    def calc_F_constantBeta1(x, X0, P, H, TargetVar, V = None):
+    def calc_F_constantBeta1(x, X0, P, H, TargetVar, V = None, EPIC_bool = None):
         Xtest = x + X0
-        return calc_F(Xtest, P, H, TargetVar, V)
+        return calc_F(Xtest, P, H, TargetVar, V, EPIC_bool)
 
-    # argsFX0 is arguments for  calcF_constantBeta1
-    argsFX0 = (X0, P, H, TargetVar, V)
+    # argsFX0 is arguments for  calcF_constantBeta1 
+    if EPIC_bool is None:
+        argsFX0 = (X0, P, H, TargetVar, V)
+    else:
+        argsFX0 = (X0, P, H, TargetVar, V, EPIC_bool)
 
     # solve the problem with constant Ch
     x0_4cB = NP.array([0])
