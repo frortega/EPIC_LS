@@ -16,7 +16,7 @@ from scipy.linalg import inv
 
 
 ### calculate function F (residuals) of the EPIC 
-def calc_F(X, P, H, TargetVar, V = None):
+def calc_F(X, P, H, TargetVar, V = None, EPIC_bool = None):
     """
     Calculates function F (residuals) of the EPIC
 
@@ -39,13 +39,17 @@ def calc_F(X, P, H, TargetVar, V = None):
     # compute the EPIC residual vector
     A = P + H.T.dot(invCh.dot(H))
     invA = inv(A)
-    F = NP.diag(invA) - TargetVar
+    # Assemble F
+    if EPIC_bool is None:
+        F = NP.diag(invA) - TargetVar
+    else:
+        F = NP.diag(invA)[EPIC_bool] - TargetVar
 
     return F
 
 
 ### calculate the Jacobian JF of the functions of residuals F
-def calc_JF(X, P, H, TargetVar, V = None):
+def calc_JF(X, P, H, TargetVar, V = None, EPIC_bool = None):
     """
     Calculates the Jacobian JF of the functions of residuals F
 
@@ -70,6 +74,9 @@ def calc_JF(X, P, H, TargetVar, V = None):
 
     if V is not None:
         JF = JF.dot(V)
+
+    if EPIC_bool is not None:
+        JF = JF[EPIC_bool, :]
 
     return JF
 
