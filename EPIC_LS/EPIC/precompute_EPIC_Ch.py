@@ -10,6 +10,8 @@ Universidad de Chile
 
 Modules to precompute EPIC Ch for a Least Squares Problem, and store it into a file.
 
+TODO: Need to control verbosity in the main loop of precompute_EPIC_Ch
+
 """
 import numpy as NP
 import scipy as SP
@@ -116,6 +118,10 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
                                 EPIC_bool = EPIC_bool)
         ChSol.append(epic_sol)
 
-    return ChSol, target_sigmas
+    data_EPIC = {}
+    data_EPIC['ChSol'] = ChSol
+    data_EPIC['target_sigmas'] = target_sigmas
+    
+    return data_EPIC
 
 
