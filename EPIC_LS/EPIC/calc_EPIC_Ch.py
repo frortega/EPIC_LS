@@ -37,6 +37,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     :param homogeneous_step: if True does first an homogeneous step to find a preliminary
                             initial guess of Ch.
 
+
     LSQpar must be a dictionary containing the convergence parameters for:    
         (1) Homogeneous step search (with default values of):
             - LSQpar['TolX1'] = 1e-6  
@@ -52,7 +53,8 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
             - LSQpar['verbose'] = 2
       
         see scipy.optimize.least_squares help for further information. Here, TolX?, TolF? 
-        and TolG? refer to tolerances defined for convergence criteria on model, objective        function and gradient variations, respectively.
+        and TolG? refer to tolerances defined for convergence criteria on model, objective
+                function and gradient variations, respectively.
 
     :return: a dictionary with the estimated vector of the natural logarithm of the
              reciprocal of a priori variances Ch and status as well as information on 
