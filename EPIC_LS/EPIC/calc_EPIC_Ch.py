@@ -215,5 +215,10 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
               NP.min(sol['x']), NP.max(sol['x'])))
         print('****************************************************************')
 
+    # clean unnecesary info in sol that uses a lot of memmory
+    sol.pop('jac')
+    sol.pop('grad')
+    sol.pop('active_mask')
+
     return sol
 
