@@ -88,10 +88,7 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
 
     # replace Ch0 if not given
     if X0 is None:
-        if EPIC_bool is None:
-            X0 = NP.zeros(Nh)
-        else:
-            X0 = NP.zeros(int(EPIC_bool.sum()))
+        X0 = NP.zeros(Nh)
 
     # do a sanity check that all target sigmas have the proper number of elements
     if EPIC_bool is None:
