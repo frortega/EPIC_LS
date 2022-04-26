@@ -108,7 +108,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
         if 'TolG2' not in LSQpar.keys():
             LSQpar['TolG2'] = 1E-10
         if 'damp_trf' not in LSQpar.keys():
-            LSQpar['damp_trf'] = 1E-3
+            LSQpar['damp_trf'] = 1E-9
 
     if 'method' not in LSQpar.keys():
         LSQpar['method'] = 'trf'
@@ -213,7 +213,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
                         gtol=LSQpar['TolG2'],
                         bounds=bounds, x_scale = 'jac',
                         tr_solver='lsmr',
-                        tr_options={'regularize': True, 'damp': LSQpar['damp_trf']})
+                        tr_options={'regularize': False, 'damp': LSQpar['damp_trf']})
 
     if LSQpar['verbose'] > 0:
         print('****************************************************************')
