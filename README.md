@@ -24,4 +24,6 @@ Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021
 -----
 #### LATEST UPDATES:
 
+- July 7, 2022: Adds the option to define only a subset of parameters that are subject to the EPIC (see variable EPIC_bool in calc_EPIC_Ch.py)
+
 - October 26, 2021: Adds the option for performing the Least Squares Estimation applying non negativity constraints on all model parameters (see LeastSquaresNonNeg.py and LeastSquaresRegNonNeg.py in EPIC_LS/LeastSquares/).
