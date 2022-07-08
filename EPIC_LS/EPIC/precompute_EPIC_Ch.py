@@ -16,9 +16,8 @@ TODO: Need to control verbosity in the main loop of precompute_EPIC_Ch
 import numpy as NP
 import scipy as SP
 from scipy.linalg import block_diag
-import os
 from .calc_EPIC_Ch import calc_EPIC_Ch
-import pickle
+from .partial_EPIC_problem import assemble_extended_d_G_Cx
 
 
 def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
@@ -169,13 +168,12 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
     if Npar != Npar2 or Npar != Npar3 or Npar2 != Npar3:
         raise ValueError('G, H and H_ne must have the same number of columns!...')
 
-    # as H_ne.dot(m) = ho_ne is not subject to the EPIC, is appended below G.
-    G_extended = NP.vstack((G, H_ne))
-    # also, Cx needs to be extended using block_diag
-    Cx_extended = block_diag(Cx, Ch_ne)
+    # get the extended equivalent problem
+    G_extended, Cx_extended = assemble_extended_d_G_Cx( G = G, 
+                                                        Cx = Cx, 
+                                                        H_ne = H_ne, 
+                                                        Ch_ne = Ch_ne)
     
-    
-
     # precision matrix of the unregularized problem
     Ndata_extended = Ndata + Nh_ne
     inv_Cx = NP.linalg.lstsq( Cx_extended , NP.eye(Ndata_extended) , rcond = None)[0]
