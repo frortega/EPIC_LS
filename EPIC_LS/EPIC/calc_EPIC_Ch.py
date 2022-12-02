@@ -10,6 +10,9 @@ Universidad de Chile
 
 Calculation of prior information variances using the EPIC
 
+2022-12-02: - Adds optional minimum norm of diag(Wh) regularization to the calculation 
+            of the EPIC.
+
 """
 import numpy as NP
 from scipy.linalg import inv
@@ -19,7 +22,8 @@ from .F_JF import calc_F, calc_JF
 
 ### Main function to calculate Ch using EPIC condition.
 def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step = False,
-                 beta_shift_k = 0, beta_distance = 2, EPIC_bool = None):
+                 beta_shift_k = 0, beta_distance = 2, EPIC_bool = None,
+                 regularize = None):
     """
 
     :param P: Precision matrix of the unregularized inverse problem (Nm x Nm)
@@ -42,7 +46,15 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
                covariance matrix of model parameters (Cm), then, the EPIC is written as:
                     var_m[EPIC_bool] = target_sigmas**2
                CAUTION must be taked when defining EPIC_bool and target_sigmas as 
-               the length and order of var_m[EPIC_bool] and target_sigmas**2  must match. 
+               the length and order of var_m[EPIC_bool] and target_sigmas**2  must match.
+    :param regularize: if None, the EPIC condition is solved through an unregularized 
+                       nonlinear least squares inversion. If a dictionary, can be an 
+                       empty dictionary, or a dictionary defining 'sigma_weights', the
+                       standard deviation of the minimum norm prior constraint on the
+                       regularization weight. If the dictionary does not have the 
+                       'sigma_weights' key, the default value is used 
+                       (default : NP.exp(NP.finfo(float).precision/3)). Note that when
+                       regularization is used, the EPIC will be met approximately.
     :param LSQpar: must be a dictionary containing the convergence parameters for:    
         (1) Homogeneous step search (with default values of):
             - LSQpar['TolX1'] = 1e-6  
@@ -122,6 +134,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     targetSigma_m = targetSigma_m.reshape(len(targetSigma_m))
     # set bounds for betas
     bounds = compute_bounds(beta_shift_k, beta_distance)
+       
     if LSQpar['verbose'] > 0:
             msg = """
             *****************************************************
@@ -137,21 +150,16 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     # set the a posteriori target variance
     TargetVar = targetSigma_m ** 2
     # set the scipy.optimize.least_squares problem
-    if EPIC_bool is None:
-        Fargs = (P, H, TargetVar, V)
-    else:
-        Fargs = (P, H, TargetVar, V, EPIC_bool)
+    Fargs = (P, H, TargetVar, V, EPIC_bool, regularize)
 
     # calcF with constant function first to speed up things.
-    def calc_F_constantBeta1(x, X0, P, H, TargetVar, V = None, EPIC_bool = None):
+    def calc_F_constantBeta1(x, X0, P, H, TargetVar, V = None, EPIC_bool = None,
+                             regularize = None):
         Xtest = x + X0
-        return calc_F(Xtest, P, H, TargetVar, V, EPIC_bool)
+        return calc_F(Xtest, P, H, TargetVar, V, EPIC_bool, regularize)
 
     # argsFX0 is arguments for  calcF_constantBeta1 
-    if EPIC_bool is None:
-        argsFX0 = (X0, P, H, TargetVar, V)
-    else:
-        argsFX0 = (X0, P, H, TargetVar, V, EPIC_bool)
+    argsFX0 = (X0, P, H, TargetVar, V, EPIC_bool, regularize)
 
     # solve the problem with constant Ch
     x0_4cB = NP.array([0])
