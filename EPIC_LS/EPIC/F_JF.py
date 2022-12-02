@@ -10,13 +10,18 @@ Universidad de Chile
 
 Calculation of EPIC residual and its Jacobian 
 
+2022-12-02: - Adds optional minimum norm of diag(Wh) regularization to the calculation 
+            of the EPIC.
+            - Changes objective function to use target variances as the standard
+            deviation of the EPIC in the nonlinear least squares problem.
 """
 import numpy as NP
 from scipy.linalg import inv
 
+sigma_weight_default =  NP.exp(NP.finfo(float).precision/3)
 
 ### calculate function F (residuals) of the EPIC 
-def calc_F(X, P, H, TargetVar, V = None, EPIC_bool = None):
+def calc_F(X, P, H, TargetVar, V = None, EPIC_bool = None, regularize = None):
     """
     Calculates function F (residuals) of the EPIC
 
@@ -33,6 +38,13 @@ def calc_F(X, P, H, TargetVar, V = None, EPIC_bool = None):
                     var_m[EPIC_bool] = target_sigmas**2
                CAUTION must be taked when defining EPIC_bool and target_sigmas as 
                the length and order of var_m[EPIC_bool] and target_sigmas**2  must match.
+    :param regularize: if None, the EPIC condition is solved through an unregularized 
+                       nonlinear least squares inversion. If a dictionary, can be an 
+                       empty dictionary, or a dictionary defining 'sigma_weights', the
+                       standard deviation of the minimum norm prior constraint on the
+                       regularization weight. If the dictionary does not have the 
+                       'sigma_weights' key, the default value is used
+                       (default : NP.exp(NP.finfo(float).precision/3)).
     :return: Numpy array with function F evaluated in X.
 
     """
@@ -52,11 +64,27 @@ def calc_F(X, P, H, TargetVar, V = None, EPIC_bool = None):
     else:
         F = NP.diag(invA)[EPIC_bool] - TargetVar
 
+    F = F / TargetVar
+
+    # extend F if using regularization to compute EPIC
+    # Note that here the EPIC will be approximately met.
+    if regularize is not None:
+        # The standard deviation of the minimum norm of the weights Wh
+        if 'sigma_weight' not in regularize.keys():
+            sigma_weight = sigma_weight_default
+        else:
+            sigma_weight = regularize['sigma_weight']
+            
+        # damping on Wh, make them closer to null values
+        F2 = NP.exp(beta/2) / sigma_weight
+        
+        F = NP.hstack((F, F2))    
+        
     return F
 
 
 ### calculate the Jacobian JF of the functions of residuals F
-def calc_JF(X, P, H, TargetVar, V = None, EPIC_bool = None):
+def calc_JF(X, P, H, TargetVar, V = None, EPIC_bool = None, regularize = None):
     """
     Calculates the Jacobian JF of the functions of residuals F
 
@@ -84,6 +112,21 @@ def calc_JF(X, P, H, TargetVar, V = None, EPIC_bool = None):
 
     if EPIC_bool is not None:
         JF = JF[EPIC_bool, :]
+
+    JF = NP.diag(1/TargetVar).dot(JF)
+
+    # extend JF if using regularization to compute EPIC
+    # Note that here the EPIC will be approximately met.
+    if regularize is not None:
+        if 'sigma_weight' not in regularize.keys():
+            sigma_weight = sigma_weight_default
+        else:
+            sigma_weight = regularize['sigma_weight']
+
+        # add the jacobian of the Wh damping
+        JF2 = 0.5 * NP.diag(NP.exp(beta/2)) / sigma_weight
+    
+        JF = NP.vstack((JF, JF2))
 
     return JF
 
