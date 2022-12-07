@@ -213,9 +213,6 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
     inv_Cx = NP.linalg.lstsq( Cx_extended , NP.eye(Ndata_extended) , rcond = None)[0]
     P = G_extended.T.dot(inv_Cx.dot(G_extended))
 
-    # replace Ch0 if not given
-    if X0 is None:
-        X0 = NP.zeros(Nh)
 
     # do a sanity check that all target sigmas have the proper number of elements
     if EPIC_bool is None:
@@ -333,10 +330,6 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
     # precision matrix of the unregularized problem
     inv_Cx = NP.linalg.lstsq( Cx , NP.eye(Ndata) , rcond = None)[0]
     P = G.T.dot(inv_Cx.dot(G))
-
-    # replace Ch0 if not given
-    if X0 is None:
-        X0 = NP.zeros(Nh)
 
     # do a sanity check that all target sigmas have the proper number of elements
     if EPIC_bool is None:

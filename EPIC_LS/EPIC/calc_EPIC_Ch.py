@@ -32,7 +32,8 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
                           Must be a single column numpy 2D array. The length must be 
                           equal to the number of model parameters.
     :param X0: initial values of betas, the natural logarithm of the reciprocal of prior 
-               information variances (Nh x 1). X0 = -NP.log(Ch0). 
+               information variances (Nh x 1). X0 = -NP.log(Ch0). If not given, will be 
+               set to minimum possible value.
     :param LSQpar: a dictionary with several parameters that control convergence of
                 nonlinear optimization algorithm used to solve the EPIC condition problem.
     :param V: matrix accounting for a linear variable change, x = V.dot(y) in which
@@ -129,11 +130,16 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     if 'verbose' not in LSQpar.keys():
         LSQpar['verbose'] = 2
 
+    # set bounds for betas
+    bounds = compute_bounds(beta_shift_k, beta_distance)
+    # if X0 is not given, use lowest bound
+    if X0 is None:
+        X0 = NP.ones(H.shape[0]) * bounds[0]
+
     # enforce that X0 and targetSigma_m are 1D numpy arrays
     X0 = X0.reshape(len(X0))
     targetSigma_m = targetSigma_m.reshape(len(targetSigma_m))
-    # set bounds for betas
-    bounds = compute_bounds(beta_shift_k, beta_distance)
+    
        
     if LSQpar['verbose'] > 0:
             msg = """
