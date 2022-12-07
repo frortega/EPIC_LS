@@ -18,7 +18,7 @@ Calculation of EPIC residual and its Jacobian
 import numpy as NP
 from scipy.linalg import inv
 
-sigma_weight_default =  NP.exp(NP.finfo(float).precision/3)
+sigma_weight_default =  NP.exp(NP.finfo(float).precision/4)
 
 ### calculate function F (residuals) of the EPIC 
 def calc_F(X, P, H, TargetVar, V = None, EPIC_bool = None, regularize = None):
