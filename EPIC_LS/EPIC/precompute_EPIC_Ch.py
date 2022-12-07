@@ -24,7 +24,8 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
             LSQpar={}, homogeneous_step = True,
             beta_shift_k=0, beta_distance=2,
             EPIC_bool = None,
-            H_ne = None, Ch_ne = None):
+            H_ne = None, Ch_ne = None,
+            regularize = None):
     """
 
     :param G: Design matrix with Green's functions of the problem (Nd x Nm)
@@ -52,6 +53,21 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
     :param beta_shift_k & beta_distance: see docstring of beta_bounds.compute_bounds
     :param homogeneous_step: if True does first an homogeneous step to find a preliminary
                             initial guess of Ch.
+    :param EPIC_bool: A boolean numpy 1D array indicating which coefficients of m are 
+               subject to the EPIC. If EPIC_bool[i] is True then m[i] is subject to EPIC.
+               If var_m is the vector with the diagonal elements of the posterior 
+               covariance matrix of model parameters (Cm), then, the EPIC is written as:
+                    var_m[EPIC_bool] = target_sigmas**2
+               CAUTION must be taked when defining EPIC_bool and target_sigmas as 
+               the length and order of var_m[EPIC_bool] and target_sigmas**2  must match.
+    :param regularize: if None, the EPIC condition is solved through an unregularized 
+                       nonlinear least squares inversion. If a dictionary, can be an 
+                       empty dictionary, or a dictionary defining 'sigma_weights', the
+                       standard deviation of the minimum norm prior constraint on the
+                       regularization weight. If the dictionary does not have the 
+                       'sigma_weights' key, the default value is used 
+                       (default : NP.exp(NP.finfo(float).precision/3)). Note that when
+                       regularization is used, the EPIC will be met approximately.
     :param LSQpar: must be a dictionary containing the convergence parameters for:
         (1) Homogeneous step search (with default values of):
             - LSQpar['TolX1'] = 1e-6
@@ -82,7 +98,8 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
                                    homogeneous_step = homogeneous_step,
                                    beta_shift_k = beta_shift_k,
                                    beta_distance = beta_distance,
-                                   EPIC_bool = EPIC_bool)
+                                   EPIC_bool = EPIC_bool,
+                                   regularize = regularize)
 
     else: # EPIC and NON EPIC regularization are used.
         if Ch_ne is None:
@@ -94,7 +111,8 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
                                                homogeneous_step = homogeneous_step,
                                                beta_shift_k = beta_shift_k,
                                                beta_distance = beta_distance,
-                                               EPIC_bool = EPIC_bool)
+                                               EPIC_bool = EPIC_bool,
+                                               regularize = regularize)
 
 
 
@@ -103,7 +121,8 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
 def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None, V = None,
             LSQpar={}, homogeneous_step = True,
             beta_shift_k=0, beta_distance=2,
-            EPIC_bool = None):
+            EPIC_bool = None,
+            regularize = None):
     """
 
     :param G: Design matrix with Green's functions of the problem (Nd x Nm)
@@ -131,6 +150,21 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
     :param beta_shift_k & beta_distance: see docstring of beta_bounds.compute_bounds
     :param homogeneous_step: if True does first an homogeneous step to find a preliminary
                             initial guess of Ch.
+    :param EPIC_bool: A boolean numpy 1D array indicating which coefficients of m are 
+               subject to the EPIC. If EPIC_bool[i] is True then m[i] is subject to EPIC.
+               If var_m is the vector with the diagonal elements of the posterior 
+               covariance matrix of model parameters (Cm), then, the EPIC is written as:
+                    var_m[EPIC_bool] = target_sigmas**2
+               CAUTION must be taked when defining EPIC_bool and target_sigmas as 
+               the length and order of var_m[EPIC_bool] and target_sigmas**2  must match.
+    :param regularize: if None, the EPIC condition is solved through an unregularized 
+                       nonlinear least squares inversion. If a dictionary, can be an 
+                       empty dictionary, or a dictionary defining 'sigma_weights', the
+                       standard deviation of the minimum norm prior constraint on the
+                       regularization weight. If the dictionary does not have the 
+                       'sigma_weights' key, the default value is used 
+                       (default : NP.exp(NP.finfo(float).precision/3)). Note that when
+                       regularization is used, the EPIC will be met approximately.
     :param LSQpar: must be a dictionary containing the convergence parameters for:
         (1) Homogeneous step search (with default values of):
             - LSQpar['TolX1'] = 1e-6
@@ -205,7 +239,8 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
                                 homogeneous_step=homogeneous_step,
                                 beta_shift_k=beta_shift_k,
                                 beta_distance=beta_distance,
-                                EPIC_bool = EPIC_bool)
+                                EPIC_bool = EPIC_bool,
+                                regularize = regularize)
         ChSol.append(epic_sol)
 
     data_EPIC = {}
@@ -219,7 +254,8 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
 def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
             LSQpar={}, homogeneous_step = True,
             beta_shift_k=0, beta_distance=2,
-            EPIC_bool = None):
+            EPIC_bool = None,
+            regularize = None):
     """
 
     :param G: Design matrix with Green's functions of the problem (Nd x Nm)
@@ -243,6 +279,21 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
     :param beta_shift_k & beta_distance: see docstring of beta_bounds.compute_bounds
     :param homogeneous_step: if True does first an homogeneous step to find a preliminary
                             initial guess of Ch.
+    :param EPIC_bool: A boolean numpy 1D array indicating which coefficients of m are 
+               subject to the EPIC. If EPIC_bool[i] is True then m[i] is subject to EPIC.
+               If var_m is the vector with the diagonal elements of the posterior 
+               covariance matrix of model parameters (Cm), then, the EPIC is written as:
+                    var_m[EPIC_bool] = target_sigmas**2
+               CAUTION must be taked when defining EPIC_bool and target_sigmas as 
+               the length and order of var_m[EPIC_bool] and target_sigmas**2  must match.
+    :param regularize: if None, the EPIC condition is solved through an unregularized 
+                       nonlinear least squares inversion. If a dictionary, can be an 
+                       empty dictionary, or a dictionary defining 'sigma_weights', the
+                       standard deviation of the minimum norm prior constraint on the
+                       regularization weight. If the dictionary does not have the 
+                       'sigma_weights' key, the default value is used 
+                       (default : NP.exp(NP.finfo(float).precision/3)). Note that when
+                       regularization is used, the EPIC will be met approximately.
     :param LSQpar: must be a dictionary containing the convergence parameters for:
         (1) Homogeneous step search (with default values of):
             - LSQpar['TolX1'] = 1e-6
@@ -309,7 +360,8 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
                                 homogeneous_step=homogeneous_step,
                                 beta_shift_k=beta_shift_k,
                                 beta_distance=beta_distance,
-                                EPIC_bool = EPIC_bool)
+                                EPIC_bool = EPIC_bool,
+                                regularize = regularize)
         ChSol.append(epic_sol)
 
     data_EPIC = {}
