@@ -16,7 +16,9 @@ Universidad de Chile
 2024-05-29: to increase speed of the calculations we convert calc_F and calc_JF functions
 into a class that acts as a wrapper for the calculation of EPIC residual and its Jacobian
 for nonlinear least squares implementation in scipy.optimize.least_squares. The wraper has
-a memory of the calculations that are common to the misfit residuals and their Jacobian.
+a memory of the calculations that are common to the misfit residuals and their Jacobian. 
+I thank the people at the Scipy github for giving the great idea of the wrapper at the 
+issue post: https://github.com/scipy/scipy/issues/20826#issuecomment-2136326264 
 
 """
 import numpy as np
