@@ -13,15 +13,21 @@ Calculation of prior information variances using the EPIC
 2022-12-02: - Adds optional minimum norm of diag(Wh) regularization to the calculation 
             of the EPIC.
 
+2024-06-06: - Improves the calculation of the EPIC by using a wrapper class for the misfit
+            residuals (calc_F) and their Jacobian (calc_JF). This class has a memory of 
+            the calculations that have been done previously and are common to calc_F and 
+            calc_JF. This is done to speed up the calculations, making the calculations
+            about 30-40% faster.
+
 """
 import numpy as NP
 from scipy.linalg import inv
 from scipy.optimize import least_squares
 from .beta_bounds import compute_bounds
-from .F_JF import calc_F, calc_JF
+from .objective_fun_wrapper import objective_fun_wrapper
 
 ### Main function to calculate Ch using EPIC condition.
-def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step = False,
+def calc_EPIC_Ch(P, H, targetSigma_m, X0 = None, V = None, LSQpar={}, homogeneous_step = False,
                  beta_shift_k = 0, beta_distance = 2, EPIC_bool = None,
                  regularize = None):
     """
@@ -33,7 +39,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
                           equal to the number of model parameters.
     :param X0: initial values of betas, the natural logarithm of the reciprocal of prior 
                information variances (Nh x 1). X0 = -NP.log(Ch0). If not given, will be 
-               set to minimum possible value.
+               set to the average of the computed bounds for X = -NP.log(Ch).
     :param LSQpar: a dictionary with several parameters that control convergence of
                 nonlinear optimization algorithm used to solve the EPIC condition problem.
     :param V: matrix accounting for a linear variable change, x = V.dot(y) in which
@@ -132,9 +138,9 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
 
     # set bounds for betas
     bounds = compute_bounds(beta_shift_k, beta_distance)
-    # if X0 is not given, use lowest bound
+    # if X0 is not given, average of bounds
     if X0 is None:
-        X0 = NP.ones(H.shape[0]) * bounds[0]
+        X0 = NP.ones(H.shape[0]) * (bounds[0] + bounds[1]) / 2.0
 
     # enforce that X0 and targetSigma_m are 1D numpy arrays
     X0 = X0.reshape(len(X0))
@@ -156,16 +162,18 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     # set the a posteriori target variance
     TargetVar = targetSigma_m ** 2
     # set the scipy.optimize.least_squares problem
-    Fargs = (P, H, TargetVar, V, EPIC_bool, regularize)
+    # instantiate the F and JF wrapper
+    EPICwrapper = objective_fun_wrapper(P = P, H = H, TargetVar = TargetVar, V = V,
+                                        EPIC_bool = EPIC_bool,
+                                        regularize = regularize)
 
     # calcF with constant function first to speed up things.
-    def calc_F_constantBeta1(x, X0, P, H, TargetVar, V = None, EPIC_bool = None,
-                             regularize = None):
+    def calc_F_constantBeta1(x, X0):
         Xtest = x + X0
-        return calc_F(Xtest, P, H, TargetVar, V, EPIC_bool, regularize)
+        return EPICwrapper.calc_F(Xtest)
 
     # argsFX0 is arguments for  calcF_constantBeta1 
-    argsFX0 = (X0, P, H, TargetVar, V, EPIC_bool, regularize)
+    argsFX0 = (X0,)
 
     # solve the problem with constant Ch
     x0_4cB = NP.array([0])
@@ -197,6 +205,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
 
 
     else: # if homogeneous step is not used.
+        
         Xnext =  X0
         if LSQpar['verbose'] > 0:
             msg = """
@@ -207,10 +216,15 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
             print(msg)
 
     Nh, Nm = H.shape
+    # just for the counters (delete this line later to avoid one extra computation)
+    EPICwrapper = objective_fun_wrapper(P = P, H = H, TargetVar = TargetVar, V = V,
+                                        EPIC_bool = EPIC_bool,
+                                        regularize = regularize)
 
     if Nh > Nm: # solve using damped iterations (SLOW!)
-        sol = least_squares(calc_F, Xnext, jac=calc_JF,
-                            method=LSQpar['method'], args=Fargs,
+        sol = least_squares(EPICwrapper.calc_F, Xnext, 
+                            jac=EPICwrapper.calc_JF,
+                            method=LSQpar['method'], args=tuple(),
                             verbose=LSQpar['verbose'], ftol=LSQpar['TolFun2'],
                             xtol=LSQpar['TolX2'], loss=LSQpar['loss'],
                             gtol=LSQpar['TolG2'],
@@ -220,25 +234,29 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
 
 
     else: # case Nh <= Nm
-        sol = least_squares(calc_F, Xnext, jac = calc_JF,
-                        method = LSQpar['method'], args = Fargs, 
-                        verbose = LSQpar['verbose'], ftol = LSQpar['TolFun2'], 
-                        xtol= LSQpar['TolX2'], loss = LSQpar['loss'],
-                        gtol=LSQpar['TolG2'],
-                        bounds=bounds, x_scale = 'jac',
-                        tr_solver='lsmr',
-                        tr_options={'regularize': False, 'damp': LSQpar['damp_trf']})
+        sol = least_squares(EPICwrapper.calc_F, Xnext, 
+                            jac = EPICwrapper.calc_JF,
+                            method = LSQpar['method'], args = tuple(), 
+                            verbose = LSQpar['verbose'], ftol = LSQpar['TolFun2'], 
+                            xtol= LSQpar['TolX2'], loss = LSQpar['loss'],
+                            gtol=LSQpar['TolG2'],
+                            bounds=bounds, x_scale = 'jac',
+                            tr_solver='lsmr',
+                            tr_options={'regularize': False, 'damp': LSQpar['damp_trf']})
 
     if LSQpar['verbose'] > 0:
         print('****************************************************************')
         print('*** calculated betas min max are : ({:.2f}, {:.2f})'.format(
               NP.min(sol['x']), NP.max(sol['x'])))
+        #print('Counting common, F and JF')
+        #print(EPICwrapper.count_common, EPICwrapper.count_F, EPICwrapper.count_JF)
         print('****************************************************************')
 
     # clean unnecesary info in sol that uses a lot of memmory
     sol.pop('jac')
     sol.pop('grad')
     sol.pop('active_mask')
-
+    
+    
     return sol
 
