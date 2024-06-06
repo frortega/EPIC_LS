@@ -22,7 +22,7 @@ from .F_JF import calc_F, calc_JF
 from .objective_fun_wrapper import objective_fun_wrapper
 
 ### Main function to calculate Ch using EPIC condition.
-def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step = False,
+def calc_EPIC_Ch(P, H, targetSigma_m, X0 = None, V = None, LSQpar={}, homogeneous_step = False,
                  beta_shift_k = 0, beta_distance = 2, EPIC_bool = None,
                  regularize = None):
     """
@@ -34,7 +34,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
                           equal to the number of model parameters.
     :param X0: initial values of betas, the natural logarithm of the reciprocal of prior 
                information variances (Nh x 1). X0 = -NP.log(Ch0). If not given, will be 
-               set to minimum possible value.
+               set to the average of the computed bounds for X = -NP.log(Ch).
     :param LSQpar: a dictionary with several parameters that control convergence of
                 nonlinear optimization algorithm used to solve the EPIC condition problem.
     :param V: matrix accounting for a linear variable change, x = V.dot(y) in which
@@ -133,9 +133,9 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
 
     # set bounds for betas
     bounds = compute_bounds(beta_shift_k, beta_distance)
-    # if X0 is not given, use lowest bound
+    # if X0 is not given, average of bounds
     if X0 is None:
-        X0 = NP.ones(H.shape[0]) * bounds[0]
+        X0 = NP.ones(H.shape[0]) * (bounds[0] + bounds[1]) / 2.0
 
     # enforce that X0 and targetSigma_m are 1D numpy arrays
     X0 = X0.reshape(len(X0))
