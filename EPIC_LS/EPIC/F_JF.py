@@ -20,6 +20,23 @@ from scipy.linalg import inv
 
 sigma_weight_default =  NP.exp(NP.finfo(float).precision/4)
 
+def calc_common(X, P, H, V = None):
+    """
+    Perform the common calculations for the residuals and the Jacobian.
+    """
+    if V is None:
+        beta = X
+    else:
+        beta = V.dot(X)
+    # assemble the inverse of Ch
+    invCh = NP.diag(NP.exp(beta))
+    # compute the EPIC residual vector
+    A = P + H.T.dot(invCh.dot(H))
+    invA = inv(A)
+
+    return invA, beta
+    
+
 ### calculate function F (residuals) of the EPIC 
 def calc_F(X, P, H, TargetVar, V = None, EPIC_bool = None, regularize = None):
     """
@@ -48,16 +65,9 @@ def calc_F(X, P, H, TargetVar, V = None, EPIC_bool = None, regularize = None):
     :return: Numpy array with function F evaluated in X.
 
     """
+    # compute common calculations
+    invA, beta = calc_common(X, P, H, V)
 
-    if V is None:
-        beta = X
-    else:
-        beta = V.dot(X)
-    # assemble the inverse of Ch
-    invCh = NP.diag(NP.exp(beta))
-    # compute the EPIC residual vector
-    A = P + H.T.dot(invCh.dot(H))
-    invA = inv(A)
     # Assemble F
     if EPIC_bool is None:
         F = NP.diag(invA) - TargetVar
@@ -92,14 +102,9 @@ def calc_JF(X, P, H, TargetVar, V = None, EPIC_bool = None, regularize = None):
     See calc_F() for an explanation of the arguments.
 
     """
-    if V is None:
-        beta = X
-    else:
-        beta = V.dot(X)
-
-    invCh = NP.diag(NP.exp(beta))
-    A = P + H.T.dot(invCh.dot(H))
-    invA = inv(A)
+    # compute common calculations
+    invA, beta = calc_common(X, P, H, V)
+    
     # assemble JF
     # fill the derivatives with respect to each beta
     B = H.dot(invA)

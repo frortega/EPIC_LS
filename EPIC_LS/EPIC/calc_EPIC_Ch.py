@@ -19,6 +19,7 @@ from scipy.linalg import inv
 from scipy.optimize import least_squares
 from .beta_bounds import compute_bounds
 from .F_JF import calc_F, calc_JF
+from .objective_fun_wrapper import objective_fun_wrapper
 
 ### Main function to calculate Ch using EPIC condition.
 def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step = False,
@@ -156,16 +157,18 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     # set the a posteriori target variance
     TargetVar = targetSigma_m ** 2
     # set the scipy.optimize.least_squares problem
-    Fargs = (P, H, TargetVar, V, EPIC_bool, regularize)
+    # instantiate the F and JF wrapper
+    EPICwrapper = objective_fun_wrapper(P = P, H = H, TargetVar = TargetVar, V = V,
+                                        EPIC_bool = EPIC_bool,
+                                        regularize = regularize)
 
     # calcF with constant function first to speed up things.
-    def calc_F_constantBeta1(x, X0, P, H, TargetVar, V = None, EPIC_bool = None,
-                             regularize = None):
+    def calc_F_constantBeta1(x, X0):
         Xtest = x + X0
-        return calc_F(Xtest, P, H, TargetVar, V, EPIC_bool, regularize)
+        return EPICwrapper.calc_F(Xtest)
 
     # argsFX0 is arguments for  calcF_constantBeta1 
-    argsFX0 = (X0, P, H, TargetVar, V, EPIC_bool, regularize)
+    argsFX0 = (X0,)
 
     # solve the problem with constant Ch
     x0_4cB = NP.array([0])
@@ -197,6 +200,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
 
 
     else: # if homogeneous step is not used.
+        
         Xnext =  X0
         if LSQpar['verbose'] > 0:
             msg = """
@@ -207,10 +211,15 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
             print(msg)
 
     Nh, Nm = H.shape
+    # just for the counters (delete this line later to avoid one extra computation)
+    EPICwrapper = objective_fun_wrapper(P = P, H = H, TargetVar = TargetVar, V = V,
+                                        EPIC_bool = EPIC_bool,
+                                        regularize = regularize)
 
     if Nh > Nm: # solve using damped iterations (SLOW!)
-        sol = least_squares(calc_F, Xnext, jac=calc_JF,
-                            method=LSQpar['method'], args=Fargs,
+        sol = least_squares(EPICwrapper.calc_F, Xnext, 
+                            jac=EPICwrapper.calc_JF,
+                            method=LSQpar['method'], args=tuple(),
                             verbose=LSQpar['verbose'], ftol=LSQpar['TolFun2'],
                             xtol=LSQpar['TolX2'], loss=LSQpar['loss'],
                             gtol=LSQpar['TolG2'],
@@ -220,14 +229,15 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
 
 
     else: # case Nh <= Nm
-        sol = least_squares(calc_F, Xnext, jac = calc_JF,
-                        method = LSQpar['method'], args = Fargs, 
-                        verbose = LSQpar['verbose'], ftol = LSQpar['TolFun2'], 
-                        xtol= LSQpar['TolX2'], loss = LSQpar['loss'],
-                        gtol=LSQpar['TolG2'],
-                        bounds=bounds, x_scale = 'jac',
-                        tr_solver='lsmr',
-                        tr_options={'regularize': False, 'damp': LSQpar['damp_trf']})
+        sol = least_squares(EPICwrapper.calc_F, Xnext, 
+                            jac = EPICwrapper.calc_JF,
+                            method = LSQpar['method'], args = tuple(), 
+                            verbose = LSQpar['verbose'], ftol = LSQpar['TolFun2'], 
+                            xtol= LSQpar['TolX2'], loss = LSQpar['loss'],
+                            gtol=LSQpar['TolG2'],
+                            bounds=bounds, x_scale = 'jac',
+                            tr_solver='lsmr',
+                            tr_options={'regularize': False, 'damp': LSQpar['damp_trf']})
 
     if LSQpar['verbose'] > 0:
         print('****************************************************************')
@@ -239,6 +249,8 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0, V = None, LSQpar={}, homogeneous_step 
     sol.pop('jac')
     sol.pop('grad')
     sol.pop('active_mask')
+    print('Counting common, F and JF')
+    print(EPICwrapper.count_common, EPICwrapper.count_F, EPICwrapper.count_JF)
 
     return sol
 
