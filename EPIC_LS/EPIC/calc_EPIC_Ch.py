@@ -13,12 +13,17 @@ Calculation of prior information variances using the EPIC
 2022-12-02: - Adds optional minimum norm of diag(Wh) regularization to the calculation 
             of the EPIC.
 
+2024-06-06: - Improves the calculation of the EPIC by using a wrapper class for the misfit
+            residuals (calc_F) and their Jacobian (calc_JF). This class has a memory of 
+            the calculations that have been done previously and are common to calc_F and 
+            calc_JF. This is done to speed up the calculations, making the calculations
+            about 30-40% faster.
+
 """
 import numpy as NP
 from scipy.linalg import inv
 from scipy.optimize import least_squares
 from .beta_bounds import compute_bounds
-from .F_JF import calc_F, calc_JF
 from .objective_fun_wrapper import objective_fun_wrapper
 
 ### Main function to calculate Ch using EPIC condition.
@@ -243,14 +248,15 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0 = None, V = None, LSQpar={}, homogeneou
         print('****************************************************************')
         print('*** calculated betas min max are : ({:.2f}, {:.2f})'.format(
               NP.min(sol['x']), NP.max(sol['x'])))
+        #print('Counting common, F and JF')
+        #print(EPICwrapper.count_common, EPICwrapper.count_F, EPICwrapper.count_JF)
         print('****************************************************************')
 
     # clean unnecesary info in sol that uses a lot of memmory
     sol.pop('jac')
     sol.pop('grad')
     sol.pop('active_mask')
-    print('Counting common, F and JF')
-    print(EPICwrapper.count_common, EPICwrapper.count_F, EPICwrapper.count_JF)
-
+    
+    
     return sol
 

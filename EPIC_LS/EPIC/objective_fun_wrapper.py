@@ -113,9 +113,7 @@ class objective_fun_wrapper:
             F = np.hstack((F, F2))
         
         self.count_F += 1
-        #print('X = ', X)
-        #print('beta = ', beta)
-        #print('F = ',F)
+        
         return F      
 
     def calc_JF(self, X):
@@ -149,7 +147,6 @@ class objective_fun_wrapper:
             JF = np.vstack((JF, JF2))
 
         self.count_JF += 1
-        #print('JF = ',JF)
 
         return JF
 
