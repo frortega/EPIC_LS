@@ -23,6 +23,8 @@ Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021
 
 -----
 #### LATEST UPDATES:
+- June 6, 2024: Changes calc_EPIC_Ch.py for improved efficiency (Ch estimation now runs about 30% faster).
+
 - December 7, 2022: Adds the option to define a regularization term that is not subject to the EPIC (see variable H_ne, Ch_ne in precompute_EPIC_Ch.py). Additionally, adds an option "regularize" in precompute_EPIC_Ch.py to allow a minimum norm regularization of the EPIC weights (the reciprocal of
 the standard deviations computed for the prior information using the EPIC). See "regularize" option in precompute_EPIC_Ch.py.
 
