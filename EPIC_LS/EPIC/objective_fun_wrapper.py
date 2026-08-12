@@ -22,7 +22,7 @@ issue post: https://github.com/scipy/scipy/issues/20826#issuecomment-2136326264
 
 """
 import numpy as np
-from scipy.linalg import inv
+from scipy.linalg import solve, LinAlgError
 
 class objective_fun_wrapper:
     """
@@ -79,11 +79,17 @@ class objective_fun_wrapper:
                 beta = X
             else:
                 beta = self.V.dot(X)
-            # assemble the inverse of Ch
-            invCh = np.diag(np.exp(beta))
+            # replaced with broadcast for efficiency: invCh = np.diag(np.exp(beta))
+            diagInvCh = np.exp(beta)
             # compute the EPIC residual vector
-            A = self.P + self.H.T @ (invCh @ self.H)
-            invA = inv(A)
+            # replaced with broadcast for efficiency: A = self.P + self.H.T @ (invCh @ self.H)
+            A = self.P + self.H.T @ (diagInvCh[:, None] * self.H)
+            # A is symmetric; try the cheaper Cholesky path before the indefinite one
+            I = np.eye(A.shape[0])
+            try:
+                invA = solve(A, I, assume_a='pos', check_finite=False)
+            except LinAlgError:
+                invA = solve(A, I, assume_a='sym', check_finite=False)
             # update stored variables that result from the common calculations
             self.invA = invA
             self.beta = beta
@@ -129,8 +135,10 @@ class objective_fun_wrapper:
         # fill the derivatives with respect to each beta
         B = self.H @ invA
         BB = B * B
-        E = np.diag(np.exp(beta))
-        JF = np.transpose(-1.0 * E @ BB)
+        # replaced with broadcast for efficiency: E = np.diag(np.exp(beta))
+        diagInvCh = np.exp(beta)
+        # replaced with broadcast for efficiency: JF = np.transpose(-1.0 * E @ BB)
+        JF = np.transpose(-1.0 * diagInvCh[:, None] * BB)
 
         if self.V is not None:
             JF = JF @ self.V
@@ -138,7 +146,8 @@ class objective_fun_wrapper:
         if self.EPIC_bool is not None:
             JF = JF[self.EPIC_bool, :]
 
-        JF = np.diag(1/self.TargetVar) @ JF
+        # replaced with broadcast for efficiency: JF = np.diag(1/self.TargetVar) @ JF
+        JF = (1 / self.TargetVar)[:, None] * JF
 
         # extend JF if using regularization to compute EPIC        
         # Note that here the EPIC will be approximately met.
