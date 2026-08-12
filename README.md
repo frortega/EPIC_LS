@@ -18,6 +18,19 @@ Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021
 
 - To use this package add this folder to your PYTHONPATH environment variable.
 
+- The parallel `num_proc` option in `precompute_EPIC_Ch_pool.py` requires the `psutil` and `threadpoolctl` packages (each worker limits its own BLAS/OpenMP threads to 1 via `threadpoolctl` to avoid oversubscription). Install with pip:
+  ```bash
+  pip install psutil threadpoolctl
+  ```
+  or with conda (default channel):
+  ```bash
+  conda install psutil threadpoolctl
+  ```
+  or from conda-forge:
+  ```bash
+  conda install -c conda-forge psutil threadpoolctl
+  ```
+
 -----
 #### LATEST UPDATES:
 - June 6, 2024: Changes calc_EPIC_Ch.py for improved efficiency (Ch estimation now runs about 30% faster).
