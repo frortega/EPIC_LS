@@ -22,7 +22,7 @@ issue post: https://github.com/scipy/scipy/issues/20826#issuecomment-2136326264
 
 """
 import numpy as np
-from scipy.linalg import inv
+from scipy.linalg import solve, LinAlgError
 
 class objective_fun_wrapper:
     """
@@ -83,7 +83,12 @@ class objective_fun_wrapper:
             invCh = np.diag(np.exp(beta))
             # compute the EPIC residual vector
             A = self.P + self.H.T @ (invCh @ self.H)
-            invA = inv(A)
+            # A is symmetric; try the cheaper Cholesky path before the indefinite one
+            I = np.eye(A.shape[0])
+            try:
+                invA = solve(A, I, assume_a='pos', check_finite=False)
+            except LinAlgError:
+                invA = solve(A, I, assume_a='sym', check_finite=False)
             # update stored variables that result from the common calculations
             self.invA = invA
             self.beta = beta
