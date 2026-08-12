@@ -14,4 +14,5 @@ Calculation of EPIC residual and its Jacobian
 
 from .calc_EPIC_Ch import calc_EPIC_Ch
 from .precompute_EPIC_Ch import precompute_EPIC_Ch
+from .precompute_EPIC_Ch_pool import precompute_EPIC_Ch_pool
 from . import partial_EPIC_problem
