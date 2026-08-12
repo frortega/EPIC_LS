@@ -33,6 +33,9 @@ Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021
 
 -----
 #### LATEST UPDATES:
+
+- August 12, 2026: improvements in linear algebra logic and parallelization of precompute_EPIC_Ch.py into precompute_EPIC_Ch_pool.py achieving a speedup of about 10x in computing the EPIC (in a 16 core machine).
+
 - June 6, 2024: Changes calc_EPIC_Ch.py for improved efficiency (Ch estimation now runs about 30% faster).
 
 - December 7, 2022: Adds the option to define a regularization term that is not subject to the EPIC (see variable H_ne, Ch_ne in precompute_EPIC_Ch.py). Additionally, adds an option "regularize" in precompute_EPIC_Ch.py to allow a minimum norm regularization of the EPIC weights (the reciprocal of
