@@ -262,7 +262,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0 = None, V = None, LSQpar={}, homogeneou
     sol['beta_max'] = NP.max(sol['x'])
     sol['beta_median'] = NP.median(sol['x'])
     sol['beta_bounds'] = bounds
-    
+        
     
     return sol
 

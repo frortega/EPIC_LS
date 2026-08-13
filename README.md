@@ -18,17 +18,17 @@ Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021
 
 - To use this package add this folder to your PYTHONPATH environment variable.
 
-- The parallel `num_proc` option in `precompute_EPIC_Ch_pool.py` requires the `psutil` and `threadpoolctl` packages (each worker limits its own BLAS/OpenMP threads to 1 via `threadpoolctl` to avoid oversubscription). Install with pip:
+- The parallel `num_proc` option in `precompute_EPIC_Ch_pool.py` requires the `psutil`, `threadpoolctl` and `tqdm` packages (each worker limits its own BLAS/OpenMP threads to 1 via `threadpoolctl` to avoid oversubscription; `tqdm` renders the `verbosity=1` progress bar). Install with pip:
   ```bash
-  pip install psutil threadpoolctl
+  pip install psutil threadpoolctl tqdm
   ```
   or with conda (default channel):
   ```bash
-  conda install psutil threadpoolctl
+  conda install psutil threadpoolctl tqdm
   ```
   or from conda-forge:
   ```bash
-  conda install -c conda-forge psutil threadpoolctl
+  conda install -c conda-forge psutil threadpoolctl tqdm
   ```
 
 -----
