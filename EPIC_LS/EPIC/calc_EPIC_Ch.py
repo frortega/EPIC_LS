@@ -248,6 +248,7 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0 = None, V = None, LSQpar={}, homogeneou
         print('****************************************************************')
         print('*** calculated betas min max are : ({:.2f}, {:.2f})'.format(
               NP.min(sol['x']), NP.max(sol['x'])))
+        print(f'*** beta bounds are ({bounds[0]:.2f}, {bounds[1]:.2f})')
         #print('Counting common, F and JF')
         #print(EPICwrapper.count_common, EPICwrapper.count_F, EPICwrapper.count_JF)
         print('****************************************************************')
