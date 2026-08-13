@@ -256,6 +256,11 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0 = None, V = None, LSQpar={}, homogeneou
     sol.pop('jac')
     sol.pop('grad')
     sol.pop('active_mask')
+    # add statistics of values of beta and bounds
+    sol['beta_min'] = NP.min(sol['x'])
+    sol['beta_max'] = NP.max(sol['x'])
+    sol['beta_median'] = NP.median(sol['x'])
+    sol['beta_bounds'] = bounds
     
     
     return sol
