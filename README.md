@@ -34,6 +34,8 @@ Ortega-Culaciati, F., Simons, M., Ruiz, J., Rivera, L., & Diaz-Salazar, N. (2021
 -----
 #### LATEST UPDATES:
 
+- August 14, 2026: adds adaptive correction of beta_shift_k parameter, so it adjusts automatically  when resulting betas are too close to one of the edges.
+
 - August 12, 2026: improvements in linear algebra logic and parallelization of precompute_EPIC_Ch.py into precompute_EPIC_Ch_pool.py achieving a speedup of about 10x in computing the EPIC (in a 16 core machine).
 
 - June 6, 2024: Changes calc_EPIC_Ch.py for improved efficiency (Ch estimation now runs about 30% faster).
