@@ -29,6 +29,7 @@ import multiprocessing
 import numpy as NP
 import psutil
 import threadpoolctl
+from tqdm import tqdm
 import scipy as SP
 from scipy.linalg import block_diag
 from .calc_EPIC_Ch import calc_EPIC_Ch
@@ -40,8 +41,23 @@ def _default_num_proc():
     return psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1
 
 
+def _print_summary_table(ChSol, target_sigmas):
+    """Prints one row per target_sigma with beta/bound stats and the solved objective cost."""
+    header = '{:>6s} {:>12s} {:>12s} {:>12s} {:>12s} {:>12s} {:>12s} {:>14s} {:>9s} {:>13s}'.format(
+        'index', 'ts_min', 'ts_max', 'bound_lo', 'beta_min', 'beta_max', 'bound_hi', 'final_cost',
+        'attempts', 'beta_shift_k')
+    print(header)
+    print('-' * len(header))
+    for i, (sol, ts) in enumerate(zip(ChSol, target_sigmas)):
+        ts = NP.asarray(ts).reshape(-1)
+        print('{:6d} {:12.3f} {:12.3f} {:12.3f} {:12.3f} {:12.3f} {:12.3f} {:14.6e} {:9d} {:13.3f}'.format(
+            i, NP.min(ts), NP.max(ts), sol['beta_bounds'][0], sol['beta_min'], 
+            sol['beta_max'], sol['beta_bounds'][1], sol['cost'], sol['beta_shift_attempts'],
+            sol['beta_shift_k']))
+
+
 def _epic_task(item, P, H, X0, V, LSQpar, homogeneous_step, beta_shift_k,
-               beta_distance, EPIC_bool, regularize):
+               beta_distance, EPIC_bool, regularize, beta_margin, max_retries):
     """Runs one calc_EPIC_Ch call; captures its stdout for ordered replay by the parent."""
     index, ts = item
     buf = io.StringIO()
@@ -59,7 +75,9 @@ def _epic_task(item, P, H, X0, V, LSQpar, homogeneous_step, beta_shift_k,
                                      beta_shift_k=beta_shift_k,
                                      beta_distance=beta_distance,
                                      EPIC_bool=EPIC_bool,
-                                     regularize=regularize)
+                                     regularize=regularize,
+                                     beta_margin=beta_margin,
+                                     max_retries=max_retries)
     return index, epic_sol, buf.getvalue()
 
 
@@ -69,7 +87,9 @@ def precompute_EPIC_Ch_pool(G, Cx, H, target_sigmas, X0 = None, V = None,
             EPIC_bool = None,
             H_ne = None, Ch_ne = None,
             regularize = None,
-            num_proc = None):
+            num_proc = None,
+            verbosity = 1,
+            beta_margin = 0.5, max_retries = 3):
     """
 
     :param G: Design matrix with Green's functions of the problem (Nd x Nm)
@@ -137,13 +157,21 @@ def precompute_EPIC_Ch_pool(G, Cx, H, target_sigmas, X0 = None, V = None,
                    threads are limited to 1 via threadpoolctl.threadpool_limits, scoped
                    around the calc_EPIC_Ch call, to avoid oversubscription; results
                    are returned in target_sigmas order regardless of completion order.
+    :param verbosity: controls how much is printed while iterating over target_sigmas.
+                   0 = nothing is printed; 1 = a tqdm progress bar plus a summary table
+                   at the end; 2 = the original step-by-step prints (and any
+                   LSQpar['verbose'] driven solver logs) plus the summary table at the
+                   end. Must be one of {0, 1, 2}.
+    :param beta_margin & max_retries: see docstring of calc_EPIC_Ch.
 
     :return: a list in which each item is a dictionary with the estimated vector of a
     priori variances Ch and status information on the results of the nonlinear
     optimization used to calculate the EPIC condition. The order of the list is the same
     order in which
     """
-    
+    if verbosity not in (0, 1, 2):
+        raise ValueError('verbosity must be one of 0, 1, 2 !!!')
+
     if H_ne is None: # only EPIC regularization is used.
         return _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = X0, V = V,
                                    LSQpar = LSQpar, 
@@ -152,7 +180,10 @@ def precompute_EPIC_Ch_pool(G, Cx, H, target_sigmas, X0 = None, V = None,
                                    beta_distance = beta_distance,
                                    EPIC_bool = EPIC_bool,
                                    regularize = regularize,
-                                   num_proc = num_proc)
+                                   num_proc = num_proc,
+                                   verbosity = verbosity,
+                                   beta_margin = beta_margin,
+                                   max_retries = max_retries)
 
     else: # EPIC and NON EPIC regularization are used.
         if Ch_ne is None:
@@ -166,7 +197,10 @@ def precompute_EPIC_Ch_pool(G, Cx, H, target_sigmas, X0 = None, V = None,
                                                beta_distance = beta_distance,
                                                EPIC_bool = EPIC_bool,
                                                regularize = regularize,
-                                               num_proc = num_proc)
+                                               num_proc = num_proc,
+                                               verbosity = verbosity,
+                                               beta_margin = beta_margin,
+                                               max_retries = max_retries)
 
 
 
@@ -177,7 +211,9 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
             beta_shift_k=0, beta_distance=2,
             EPIC_bool = None,
             regularize = None,
-            num_proc = None):
+            num_proc = None,
+            verbosity = 1,
+            beta_margin = 0.5, max_retries = 3):
     """
 
     :param G: Design matrix with Green's functions of the problem (Nd x Nm)
@@ -245,6 +281,8 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
                    threads are limited to 1 via threadpoolctl.threadpool_limits, scoped
                    around the calc_EPIC_Ch call, to avoid oversubscription; results
                    are returned in target_sigmas order regardless of completion order.
+    :param verbosity: see precompute_EPIC_Ch_pool.
+    :param beta_margin & max_retries: see docstring of calc_EPIC_Ch.
 
     :return: a list in which each item is a dictionary with the estimated vector of a
     priori variances Ch and status information on the results of the nonlinear
@@ -291,22 +329,29 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
         num_proc = _default_num_proc()
     num_proc = max(1, min(int(num_proc), NumTargetSigmas))
 
+    # local copy so the caller's LSQpar is not mutated; silence solver logs unless verbosity==2
+    LSQpar = dict(LSQpar)
+    if verbosity < 2:
+        LSQpar['verbose'] = 0
+
     if num_proc <= 1:
-        # do the calculation for all target sigmas
-        for i in range(0, NumTargetSigmas):
+        for i in tqdm(range(0, NumTargetSigmas), disable=(verbosity != 1), desc='EPIC Ch'):
             ts = target_sigmas[i]
-            print('   ')
-            print('*************************************************************')
-            print('Step {:d} of {:d}'.format(i + 1, len(target_sigmas)))
-            print('** Working on target_sigmas (ts) with : **')
-            print('--> ts_min = {:.3f}, ts_max = {:.3f}'.format(NP.min(ts), NP.max(ts)))
+            if verbosity == 2:
+                print('   ')
+                print('*************************************************************')
+                print('Step {:d} of {:d}'.format(i + 1, len(target_sigmas)))
+                print('** Working on target_sigmas (ts) with : **')
+                print('--> ts_min = {:.3f}, ts_max = {:.3f}'.format(NP.min(ts), NP.max(ts)))
             ts = ts.reshape(len(ts))
             epic_sol = calc_EPIC_Ch(P, H, ts, X0, V = V,  LSQpar=LSQpar,
                                     homogeneous_step=homogeneous_step,
                                     beta_shift_k=beta_shift_k,
                                     beta_distance=beta_distance,
                                     EPIC_bool = EPIC_bool,
-                                    regularize = regularize)
+                                    regularize = regularize,
+                                    beta_margin = beta_margin,
+                                    max_retries = max_retries)
             ChSol.append(epic_sol)
     else:
         # one process-pool task per target_sigma; chunksize=1 favors dynamic
@@ -317,17 +362,24 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
                                      beta_shift_k=beta_shift_k,
                                      beta_distance=beta_distance,
                                      EPIC_bool=EPIC_bool,
-                                     regularize=regularize)
+                                     regularize=regularize,
+                                     beta_margin=beta_margin,
+                                     max_retries=max_retries)
         with multiprocessing.Pool(processes=num_proc) as pool:
-            for index, epic_sol, captured_text in pool.imap_unordered(
-                    task_fn, list(enumerate(target_sigmas)), chunksize=1):
-                print(captured_text, end='')
+            for index, epic_sol, captured_text in tqdm(
+                    pool.imap_unordered(task_fn, list(enumerate(target_sigmas)), chunksize=1),
+                    total=NumTargetSigmas, disable=(verbosity != 1), desc='EPIC Ch'):
+                if verbosity == 2:
+                    print(captured_text, end='')
                 ChSol[index] = epic_sol
 
     data_EPIC = {}
     data_EPIC['ChSol'] = ChSol
     data_EPIC['target_sigmas'] = target_sigmas
-    
+
+    if verbosity >= 1:
+        _print_summary_table(ChSol, target_sigmas)
+
     return data_EPIC
 
 
@@ -337,7 +389,9 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
             beta_shift_k=0, beta_distance=2,
             EPIC_bool = None,
             regularize = None,
-            num_proc = None):
+            num_proc = None,
+            verbosity = 1,
+            beta_margin = 0.5, max_retries = 3):
     """
 
     :param G: Design matrix with Green's functions of the problem (Nd x Nm)
@@ -401,6 +455,8 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
                    threads are limited to 1 via threadpoolctl.threadpool_limits, scoped
                    around the calc_EPIC_Ch call, to avoid oversubscription; results
                    are returned in target_sigmas order regardless of completion order.
+    :param verbosity: see precompute_EPIC_Ch_pool.
+    :param beta_margin & max_retries: see docstring of calc_EPIC_Ch.
 
     :return: a list in which each item is a dictionary with the estimated vector of a
     priori variances Ch and status information on the results of the nonlinear
@@ -438,22 +494,29 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
         num_proc = _default_num_proc()
     num_proc = max(1, min(int(num_proc), NumTargetSigmas))
 
+    # local copy so the caller's LSQpar is not mutated; silence solver logs unless verbosity==2
+    LSQpar = dict(LSQpar)
+    if verbosity < 2:
+        LSQpar['verbose'] = 0
+
     if num_proc <= 1:
-        # do the calculation for all target sigmas
-        for i in range(0, NumTargetSigmas):
+        for i in tqdm(range(0, NumTargetSigmas), disable=(verbosity != 1), desc='EPIC Ch'):
             ts = target_sigmas[i]
-            print('   ')
-            print('*************************************************************')
-            print('Step {:d} of {:d}'.format(i + 1, len(target_sigmas)))
-            print('** Working on target_sigmas (ts) with : **')
-            print('--> ts_min = {:.3f}, ts_max = {:.3f}'.format(NP.min(ts), NP.max(ts)))
+            if verbosity == 2:
+                print('   ')
+                print('*************************************************************')
+                print('Step {:d} of {:d}'.format(i + 1, len(target_sigmas)))
+                print('** Working on target_sigmas (ts) with : **')
+                print('--> ts_min = {:.3f}, ts_max = {:.3f}'.format(NP.min(ts), NP.max(ts)))
             ts = ts.reshape(len(ts))
             epic_sol = calc_EPIC_Ch(P, H, ts, X0, V = V,  LSQpar=LSQpar,
                                     homogeneous_step=homogeneous_step,
                                     beta_shift_k=beta_shift_k,
                                     beta_distance=beta_distance,
                                     EPIC_bool = EPIC_bool,
-                                    regularize = regularize)
+                                    regularize = regularize,
+                                    beta_margin = beta_margin,
+                                    max_retries = max_retries)
             ChSol.append(epic_sol)
     else:
         # one process-pool task per target_sigma; chunksize=1 favors dynamic
@@ -464,17 +527,24 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
                                      beta_shift_k=beta_shift_k,
                                      beta_distance=beta_distance,
                                      EPIC_bool=EPIC_bool,
-                                     regularize=regularize)
+                                     regularize=regularize,
+                                     beta_margin=beta_margin,
+                                     max_retries=max_retries)
         with multiprocessing.Pool(processes=num_proc) as pool:
-            for index, epic_sol, captured_text in pool.imap_unordered(
-                    task_fn, list(enumerate(target_sigmas)), chunksize=1):
-                print(captured_text, end='')
+            for index, epic_sol, captured_text in tqdm(
+                    pool.imap_unordered(task_fn, list(enumerate(target_sigmas)), chunksize=1),
+                    total=NumTargetSigmas, disable=(verbosity != 1), desc='EPIC Ch'):
+                if verbosity == 2:
+                    print(captured_text, end='')
                 ChSol[index] = epic_sol
 
     data_EPIC = {}
     data_EPIC['ChSol'] = ChSol
     data_EPIC['target_sigmas'] = target_sigmas
-    
+
+    if verbosity >= 1:
+        _print_summary_table(ChSol, target_sigmas)
+
     return data_EPIC
 
 

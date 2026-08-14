@@ -25,7 +25,8 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
             beta_shift_k=0, beta_distance=2,
             EPIC_bool = None,
             H_ne = None, Ch_ne = None,
-            regularize = None):
+            regularize = None,
+            beta_margin = 0.5, max_retries = 3):
     """
 
     :param G: Design matrix with Green's functions of the problem (Nd x Nm)
@@ -85,6 +86,7 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
         see scipy.optimize.least_squares help for further information. Here, TolX?, TolF?
         and TolG? refer to tolerances defined for convergence criteria on model, objective
         function and gradient variations, respectively.
+    :param beta_margin & max_retries: see docstring of calc_EPIC_Ch.
 
     :return: a list in which each item is a dictionary with the estimated vector of a
     priori variances Ch and status information on the results of the nonlinear
@@ -99,7 +101,9 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
                                    beta_shift_k = beta_shift_k,
                                    beta_distance = beta_distance,
                                    EPIC_bool = EPIC_bool,
-                                   regularize = regularize)
+                                   regularize = regularize,
+                                   beta_margin = beta_margin,
+                                   max_retries = max_retries)
 
     else: # EPIC and NON EPIC regularization are used.
         if Ch_ne is None:
@@ -112,7 +116,9 @@ def precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
                                                beta_shift_k = beta_shift_k,
                                                beta_distance = beta_distance,
                                                EPIC_bool = EPIC_bool,
-                                               regularize = regularize)
+                                               regularize = regularize,
+                                               beta_margin = beta_margin,
+                                               max_retries = max_retries)
 
 
 
@@ -122,7 +128,8 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
             LSQpar={}, homogeneous_step = True,
             beta_shift_k=0, beta_distance=2,
             EPIC_bool = None,
-            regularize = None):
+            regularize = None,
+            beta_margin = 0.5, max_retries = 3):
     """
 
     :param G: Design matrix with Green's functions of the problem (Nd x Nm)
@@ -182,6 +189,7 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
         see scipy.optimize.least_squares help for further information. Here, TolX?, TolF?
         and TolG? refer to tolerances defined for convergence criteria on model, objective
         function and gradient variations, respectively.
+    :param beta_margin & max_retries: see docstring of calc_EPIC_Ch.
 
     :return: a list in which each item is a dictionary with the estimated vector of a
     priori variances Ch and status information on the results of the nonlinear
@@ -237,7 +245,9 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
                                 beta_shift_k=beta_shift_k,
                                 beta_distance=beta_distance,
                                 EPIC_bool = EPIC_bool,
-                                regularize = regularize)
+                                regularize = regularize,
+                                beta_margin = beta_margin,
+                                max_retries = max_retries)
         ChSol.append(epic_sol)
 
     data_EPIC = {}
@@ -252,7 +262,8 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
             LSQpar={}, homogeneous_step = True,
             beta_shift_k=0, beta_distance=2,
             EPIC_bool = None,
-            regularize = None):
+            regularize = None,
+            beta_margin = 0.5, max_retries = 3):
     """
 
     :param G: Design matrix with Green's functions of the problem (Nd x Nm)
@@ -308,6 +319,7 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
         see scipy.optimize.least_squares help for further information. Here, TolX?, TolF?
         and TolG? refer to tolerances defined for convergence criteria on model, objective
         function and gradient variations, respectively.
+    :param beta_margin & max_retries: see docstring of calc_EPIC_Ch.
 
     :return: a list in which each item is a dictionary with the estimated vector of a
     priori variances Ch and status information on the results of the nonlinear
@@ -354,7 +366,9 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
                                 beta_shift_k=beta_shift_k,
                                 beta_distance=beta_distance,
                                 EPIC_bool = EPIC_bool,
-                                regularize = regularize)
+                                regularize = regularize,
+                                beta_margin = beta_margin,
+                                max_retries = max_retries)
         ChSol.append(epic_sol)
 
     data_EPIC = {}

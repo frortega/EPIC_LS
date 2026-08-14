@@ -29,7 +29,7 @@ from .objective_fun_wrapper import objective_fun_wrapper
 ### Main function to calculate Ch using EPIC condition.
 def calc_EPIC_Ch(P, H, targetSigma_m, X0 = None, V = None, LSQpar={}, homogeneous_step = False,
                  beta_shift_k = 0, beta_distance = 2, EPIC_bool = None,
-                 regularize = None):
+                 regularize = None, beta_margin = 0.5, max_retries = 3):
     """
 
     :param P: Precision matrix of the unregularized inverse problem (Nm x Nm)
@@ -45,6 +45,11 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0 = None, V = None, LSQpar={}, homogeneou
     :param V: matrix accounting for a linear variable change, x = V.dot(y) in which
              we search values for y instead of x. Thus X0 must have the dimension of y.
     :param beta_shift_k & beta_distance: see docstring of beta_bounds.compute_bounds
+    :param beta_margin: minimum distance (in beta/log units) that beta_min/beta_max must
+               keep from the computed bounds; if either is violated, beta_shift_k is
+               recentered to (beta_min + beta_max) / 2 and the heterogeneous solve is
+               retried.
+    :param max_retries: maximum number of beta_shift_k recentering retries.
     :param homogeneous_step: if True does first an homogeneous step to find a preliminary
                             initial guess of Ch.
     :param EPIC_bool: A boolean numpy 1D array indicating which coefficients of m are 
@@ -221,33 +226,52 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0 = None, V = None, LSQpar={}, homogeneou
                                         EPIC_bool = EPIC_bool,
                                         regularize = regularize)
 
-    if Nh > Nm: # solve using damped iterations (SLOW!)
-        sol = least_squares(EPICwrapper.calc_F, Xnext, 
-                            jac=EPICwrapper.calc_JF,
-                            method=LSQpar['method'], args=tuple(),
-                            verbose=LSQpar['verbose'], ftol=LSQpar['TolFun2'],
-                            xtol=LSQpar['TolX2'], loss=LSQpar['loss'],
-                            gtol=LSQpar['TolG2'],
-                            bounds=bounds,
-                            x_scale='jac', tr_solver='lsmr',
-                            tr_options={'regularize': True, 'damp': 1e-3})
+    def _solve_heterogeneous(Xstart, betas_bounds):
+        if Nh > Nm: # solve using damped iterations (SLOW!)
+            return least_squares(EPICwrapper.calc_F, Xstart,
+                                jac=EPICwrapper.calc_JF,
+                                method=LSQpar['method'], args=tuple(),
+                                verbose=LSQpar['verbose'], ftol=LSQpar['TolFun2'],
+                                xtol=LSQpar['TolX2'], loss=LSQpar['loss'],
+                                gtol=LSQpar['TolG2'],
+                                bounds=betas_bounds,
+                                x_scale='jac', tr_solver='lsmr',
+                                tr_options={'regularize': True, 'damp': 1e-3})
+        else: # case Nh <= Nm
+            return least_squares(EPICwrapper.calc_F, Xstart,
+                                jac = EPICwrapper.calc_JF,
+                                method = LSQpar['method'], args = tuple(),
+                                verbose = LSQpar['verbose'], ftol = LSQpar['TolFun2'],
+                                xtol= LSQpar['TolX2'], loss = LSQpar['loss'],
+                                gtol=LSQpar['TolG2'],
+                                bounds=betas_bounds, x_scale = 'jac',
+                                tr_solver='lsmr',
+                                tr_options={'regularize': False, 'damp': LSQpar['damp_trf']})
 
-
-    else: # case Nh <= Nm
-        sol = least_squares(EPICwrapper.calc_F, Xnext, 
-                            jac = EPICwrapper.calc_JF,
-                            method = LSQpar['method'], args = tuple(), 
-                            verbose = LSQpar['verbose'], ftol = LSQpar['TolFun2'], 
-                            xtol= LSQpar['TolX2'], loss = LSQpar['loss'],
-                            gtol=LSQpar['TolG2'],
-                            bounds=bounds, x_scale = 'jac',
-                            tr_solver='lsmr',
-                            tr_options={'regularize': False, 'damp': LSQpar['damp_trf']})
+    # retry with a recentered beta_shift_k if solved betas end up too close to a bound
+    current_beta_shift_k = beta_shift_k
+    attempt = 0
+    while True:
+        sol = _solve_heterogeneous(Xnext, bounds)
+        beta_min = NP.min(sol['x'])
+        beta_max = NP.max(sol['x'])
+        near_bound = (beta_min - bounds[0] < beta_margin) or (bounds[1] - beta_max < beta_margin)
+        if not near_bound or attempt >= max_retries:
+            break
+        attempt += 1
+        current_beta_shift_k = (beta_min + beta_max) / 2.0
+        bounds = compute_bounds(current_beta_shift_k, beta_distance)
+        Xnext = NP.clip(sol['x'], bounds[0], bounds[1])
+        if LSQpar['verbose'] > 0:
+            print('*** betas near bounds; retry {:d}/{:d} with beta_shift_k = {:.2f}, '
+                  'new bounds = ({:.2f}, {:.2f})'.format(
+                      attempt, max_retries, current_beta_shift_k, bounds[0], bounds[1]))
 
     if LSQpar['verbose'] > 0:
         print('****************************************************************')
         print('*** calculated betas min max are : ({:.2f}, {:.2f})'.format(
               NP.min(sol['x']), NP.max(sol['x'])))
+        print(f'*** beta bounds are ({bounds[0]:.2f}, {bounds[1]:.2f})')
         #print('Counting common, F and JF')
         #print(EPICwrapper.count_common, EPICwrapper.count_F, EPICwrapper.count_JF)
         print('****************************************************************')
@@ -261,7 +285,9 @@ def calc_EPIC_Ch(P, H, targetSigma_m, X0 = None, V = None, LSQpar={}, homogeneou
     sol['beta_max'] = NP.max(sol['x'])
     sol['beta_median'] = NP.median(sol['x'])
     sol['beta_bounds'] = bounds
-    
-    
+    # final beta_shift_k and number of near-bound recentering retries performed
+    sol['beta_shift_k'] = current_beta_shift_k
+    sol['beta_shift_attempts'] = attempt
+
     return sol
 
