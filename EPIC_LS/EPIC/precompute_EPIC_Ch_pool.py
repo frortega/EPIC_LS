@@ -44,14 +44,14 @@ def _default_num_proc():
 def _print_summary_table(ChSol, target_sigmas):
     """Prints one row per target_sigma with beta/bound stats and the solved objective cost."""
     header = '{:>6s} {:>12s} {:>12s} {:>12s} {:>12s} {:>12s} {:>12s} {:>14s}'.format(
-        'index', 'ts_min', 'ts_max', 'beta_min', 'beta_max', 'bound_lo', 'bound_hi', 'cost')
+        'index', 'ts_min', 'ts_max', 'bound_lo', 'beta_min', 'beta_max', 'bound_hi', 'cost')
     print(header)
     print('-' * len(header))
     for i, (sol, ts) in enumerate(zip(ChSol, target_sigmas)):
         ts = NP.asarray(ts).reshape(-1)
         print('{:6d} {:12.3f} {:12.3f} {:12.3f} {:12.3f} {:12.3f} {:12.3f} {:14.6e}'.format(
-            i, NP.min(ts), NP.max(ts), sol['beta_min'], sol['beta_max'],
-            sol['beta_bounds'][0], sol['beta_bounds'][1], sol['cost']))
+            i, NP.min(ts), NP.max(ts), sol['beta_bounds'][0], sol['beta_min'], 
+            sol['beta_max'], sol['beta_bounds'][1], sol['cost']))
 
 
 def _epic_task(item, P, H, X0, V, LSQpar, homogeneous_step, beta_shift_k,
