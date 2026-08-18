@@ -26,6 +26,7 @@ import io
 import contextlib
 import functools
 import multiprocessing
+import os
 import numpy as NP
 import psutil
 import threadpoolctl
@@ -39,6 +40,24 @@ from .partial_EPIC_problem import assemble_extended_d_G_Cx
 def _default_num_proc():
     """Physical CPU cores, falling back to logical cores, then 1."""
     return psutil.cpu_count(logical=False) or psutil.cpu_count(logical=True) or 1
+
+
+class _TeeWriter:
+    """Writes to an in-memory buffer and, if given, flushes each write to a log file too."""
+    def __init__(self, buf, log_file=None):
+        self._buf = buf
+        self._log_file = log_file
+
+    def write(self, s):
+        self._buf.write(s)
+        if self._log_file is not None:
+            self._log_file.write(s)
+            self._log_file.flush()  # so `tail -f` sees output as soon as it is printed
+        return len(s)
+
+    def flush(self):
+        if self._log_file is not None:
+            self._log_file.flush()
 
 
 def _print_summary_table(ChSol, target_sigmas):
@@ -57,11 +76,21 @@ def _print_summary_table(ChSol, target_sigmas):
 
 
 def _epic_task(item, P, H, X0, V, LSQpar, homogeneous_step, beta_shift_k,
-               beta_distance, EPIC_bool, regularize, beta_margin, max_retries):
-    """Runs one calc_EPIC_Ch call; captures its stdout for ordered replay by the parent."""
+               beta_distance, EPIC_bool, regularize, beta_margin, max_retries,
+               log_dir=None, index_width=1):
+    """Runs one calc_EPIC_Ch call; captures its stdout for ordered replay by the parent.
+
+    If log_dir is not None, also live-writes (flushed per print) to a per-index log file
+    so progress can be watched with `tail -f` while the computation is still running.
+    """
     index, ts = item
     buf = io.StringIO()
-    with contextlib.redirect_stdout(buf):
+    log_path = None
+    if log_dir is not None:
+        log_path = os.path.join(log_dir, 'step_{:0{w}d}.log'.format(index, w=index_width))
+    with contextlib.ExitStack() as stack:
+        log_file = stack.enter_context(open(log_path, 'w')) if log_path is not None else None
+        stack.enter_context(contextlib.redirect_stdout(_TeeWriter(buf, log_file)))
         print('   ')
         print('*************************************************************')
         print('Step {:d} (index {:d})'.format(index + 1, index))
@@ -88,6 +117,7 @@ def precompute_EPIC_Ch_pool(G, Cx, H, target_sigmas, X0 = None, V = None,
             H_ne = None, Ch_ne = None,
             regularize = None,
             num_proc = None,
+            log_dir = './log_EPIC_Ch',
             verbosity = 1,
             beta_margin = 0.5, max_retries = 3):
     """
@@ -157,6 +187,12 @@ def precompute_EPIC_Ch_pool(G, Cx, H, target_sigmas, X0 = None, V = None,
                    threads are limited to 1 via threadpoolctl.threadpool_limits, scoped
                    around the calc_EPIC_Ch call, to avoid oversubscription; results
                    are returned in target_sigmas order regardless of completion order.
+    :param log_dir: if not None, path to a folder (created if it does not exist) where one
+                   'step_XXXX.log' file per target_sigma is written, flushed after every
+                   print so it can be tailed (e.g. `tail -f`) while the computation is
+                   still running. Log files always contain full solver iteration detail
+                   (LSQpar['verbose'] is forced to 2 for them) regardless of verbosity.
+                   If None, no log files are written. Default value is './log_EPIC_Ch'.
     :param verbosity: controls how much is printed while iterating over target_sigmas.
                    0 = nothing is printed; 1 = a tqdm progress bar plus a summary table
                    at the end; 2 = the original step-by-step prints (and any
@@ -181,6 +217,7 @@ def precompute_EPIC_Ch_pool(G, Cx, H, target_sigmas, X0 = None, V = None,
                                    EPIC_bool = EPIC_bool,
                                    regularize = regularize,
                                    num_proc = num_proc,
+                                   log_dir = log_dir,
                                    verbosity = verbosity,
                                    beta_margin = beta_margin,
                                    max_retries = max_retries)
@@ -198,6 +235,7 @@ def precompute_EPIC_Ch_pool(G, Cx, H, target_sigmas, X0 = None, V = None,
                                                EPIC_bool = EPIC_bool,
                                                regularize = regularize,
                                                num_proc = num_proc,
+                                               log_dir = log_dir,
                                                verbosity = verbosity,
                                                beta_margin = beta_margin,
                                                max_retries = max_retries)
@@ -212,6 +250,7 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
             EPIC_bool = None,
             regularize = None,
             num_proc = None,
+            log_dir = None,
             verbosity = 1,
             beta_margin = 0.5, max_retries = 3):
     """
@@ -281,6 +320,7 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
                    threads are limited to 1 via threadpoolctl.threadpool_limits, scoped
                    around the calc_EPIC_Ch call, to avoid oversubscription; results
                    are returned in target_sigmas order regardless of completion order.
+    :param log_dir: see precompute_EPIC_Ch_pool.
     :param verbosity: see precompute_EPIC_Ch_pool.
     :param beta_margin & max_retries: see docstring of calc_EPIC_Ch.
 
@@ -331,40 +371,34 @@ def _precompute_EPIC_Ch_HnoEPIC(G, Cx, H_ne, Ch_ne, H, target_sigmas, X0 = None,
 
     # local copy so the caller's LSQpar is not mutated; silence solver logs unless verbosity==2
     LSQpar = dict(LSQpar)
-    if verbosity < 2:
+    if log_dir is not None:
+        os.makedirs(log_dir, exist_ok=True)
+        LSQpar['verbose'] = 2  # log files always keep full solver detail regardless of verbosity
+    elif verbosity < 2:
         LSQpar['verbose'] = 0
+    index_width = len(str(max(NumTargetSigmas - 1, 0)))
+    task_fn = functools.partial(_epic_task, P=P, H=H, X0=X0, V=V, LSQpar=LSQpar,
+                                 homogeneous_step=homogeneous_step,
+                                 beta_shift_k=beta_shift_k,
+                                 beta_distance=beta_distance,
+                                 EPIC_bool=EPIC_bool,
+                                 regularize=regularize,
+                                 beta_margin=beta_margin,
+                                 max_retries=max_retries,
+                                 log_dir=log_dir,
+                                 index_width=index_width)
 
     if num_proc <= 1:
         for i in tqdm(range(0, NumTargetSigmas), disable=(verbosity != 1), desc='EPIC Ch'):
             ts = target_sigmas[i]
+            _, epic_sol, captured_text = task_fn((i, ts))
             if verbosity == 2:
-                print('   ')
-                print('*************************************************************')
-                print('Step {:d} of {:d}'.format(i + 1, len(target_sigmas)))
-                print('** Working on target_sigmas (ts) with : **')
-                print('--> ts_min = {:.3f}, ts_max = {:.3f}'.format(NP.min(ts), NP.max(ts)))
-            ts = ts.reshape(len(ts))
-            epic_sol = calc_EPIC_Ch(P, H, ts, X0, V = V,  LSQpar=LSQpar,
-                                    homogeneous_step=homogeneous_step,
-                                    beta_shift_k=beta_shift_k,
-                                    beta_distance=beta_distance,
-                                    EPIC_bool = EPIC_bool,
-                                    regularize = regularize,
-                                    beta_margin = beta_margin,
-                                    max_retries = max_retries)
+                print(captured_text, end='')
             ChSol.append(epic_sol)
     else:
         # one process-pool task per target_sigma; chunksize=1 favors dynamic
         # work-stealing since solve times vary widely between target_sigmas
         ChSol = [None] * NumTargetSigmas
-        task_fn = functools.partial(_epic_task, P=P, H=H, X0=X0, V=V, LSQpar=LSQpar,
-                                     homogeneous_step=homogeneous_step,
-                                     beta_shift_k=beta_shift_k,
-                                     beta_distance=beta_distance,
-                                     EPIC_bool=EPIC_bool,
-                                     regularize=regularize,
-                                     beta_margin=beta_margin,
-                                     max_retries=max_retries)
         with multiprocessing.Pool(processes=num_proc) as pool:
             for index, epic_sol, captured_text in tqdm(
                     pool.imap_unordered(task_fn, list(enumerate(target_sigmas)), chunksize=1),
@@ -390,6 +424,7 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
             EPIC_bool = None,
             regularize = None,
             num_proc = None,
+            log_dir = None,
             verbosity = 1,
             beta_margin = 0.5, max_retries = 3):
     """
@@ -455,6 +490,7 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
                    threads are limited to 1 via threadpoolctl.threadpool_limits, scoped
                    around the calc_EPIC_Ch call, to avoid oversubscription; results
                    are returned in target_sigmas order regardless of completion order.
+    :param log_dir: see precompute_EPIC_Ch_pool.
     :param verbosity: see precompute_EPIC_Ch_pool.
     :param beta_margin & max_retries: see docstring of calc_EPIC_Ch.
 
@@ -496,40 +532,34 @@ def _precompute_EPIC_Ch(G, Cx, H, target_sigmas, X0 = None, V = None,
 
     # local copy so the caller's LSQpar is not mutated; silence solver logs unless verbosity==2
     LSQpar = dict(LSQpar)
-    if verbosity < 2:
+    if log_dir is not None:
+        os.makedirs(log_dir, exist_ok=True)
+        LSQpar['verbose'] = 2  # log files always keep full solver detail regardless of verbosity
+    elif verbosity < 2:
         LSQpar['verbose'] = 0
+    index_width = len(str(max(NumTargetSigmas - 1, 0)))
+    task_fn = functools.partial(_epic_task, P=P, H=H, X0=X0, V=V, LSQpar=LSQpar,
+                                 homogeneous_step=homogeneous_step,
+                                 beta_shift_k=beta_shift_k,
+                                 beta_distance=beta_distance,
+                                 EPIC_bool=EPIC_bool,
+                                 regularize=regularize,
+                                 beta_margin=beta_margin,
+                                 max_retries=max_retries,
+                                 log_dir=log_dir,
+                                 index_width=index_width)
 
     if num_proc <= 1:
         for i in tqdm(range(0, NumTargetSigmas), disable=(verbosity != 1), desc='EPIC Ch'):
             ts = target_sigmas[i]
+            _, epic_sol, captured_text = task_fn((i, ts))
             if verbosity == 2:
-                print('   ')
-                print('*************************************************************')
-                print('Step {:d} of {:d}'.format(i + 1, len(target_sigmas)))
-                print('** Working on target_sigmas (ts) with : **')
-                print('--> ts_min = {:.3f}, ts_max = {:.3f}'.format(NP.min(ts), NP.max(ts)))
-            ts = ts.reshape(len(ts))
-            epic_sol = calc_EPIC_Ch(P, H, ts, X0, V = V,  LSQpar=LSQpar,
-                                    homogeneous_step=homogeneous_step,
-                                    beta_shift_k=beta_shift_k,
-                                    beta_distance=beta_distance,
-                                    EPIC_bool = EPIC_bool,
-                                    regularize = regularize,
-                                    beta_margin = beta_margin,
-                                    max_retries = max_retries)
+                print(captured_text, end='')
             ChSol.append(epic_sol)
     else:
         # one process-pool task per target_sigma; chunksize=1 favors dynamic
         # work-stealing since solve times vary widely between target_sigmas
         ChSol = [None] * NumTargetSigmas
-        task_fn = functools.partial(_epic_task, P=P, H=H, X0=X0, V=V, LSQpar=LSQpar,
-                                     homogeneous_step=homogeneous_step,
-                                     beta_shift_k=beta_shift_k,
-                                     beta_distance=beta_distance,
-                                     EPIC_bool=EPIC_bool,
-                                     regularize=regularize,
-                                     beta_margin=beta_margin,
-                                     max_retries=max_retries)
         with multiprocessing.Pool(processes=num_proc) as pool:
             for index, epic_sol, captured_text in tqdm(
                     pool.imap_unordered(task_fn, list(enumerate(target_sigmas)), chunksize=1),
